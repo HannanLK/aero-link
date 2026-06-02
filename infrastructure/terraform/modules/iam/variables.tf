@@ -1,0 +1,11 @@
+variable "prefix"                { type = string }
+variable "aws_region"            { type = string }
+variable "aws_account_id"        { type = string }
+variable "eks_oidc_issuer"       { type = string }
+variable "eks_oidc_provider_arn" { type = string }
+variable "cmk_pii_arn"           { type = string }
+variable "cmk_pci_arn"           { type = string }
+variable "cmk_infra_arn"         { type = string }
+variable "baggage_table_arn"     { type = string }
+variable "notification_table_arn" { type = string }
+variable "lambda_qr_arn"         { type = string }

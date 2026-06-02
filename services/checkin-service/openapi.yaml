@@ -1,0 +1,233 @@
+openapi: "3.0.3"
+info:
+  title: AeroLink Check-in Service
+  description: Passenger check-in, boarding pass generation (QR + barcode), and gate management
+  version: "1.0.0"
+servers:
+  - url: https://api.aerolink.app/checkin
+  - url: http://localhost:3005
+
+tags:
+  - name: checkin
+    description: Check-in flow
+  - name: boarding-pass
+    description: Boarding pass retrieval and QR codes
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message, correlationId]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        correlationId: { type: string, format: uuid }
+
+    CheckinMethod:
+      type: string
+      enum: [WEB, KIOSK, AGENT]
+
+    CheckinRequest:
+      type: object
+      required: [bookingId, bagCount]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+          description: Must be in CONFIRMED status
+        bagCount:
+          type: integer
+          minimum: 0
+          maximum: 9
+          example: 2
+        seatChangeRequest:
+          type: string
+          nullable: true
+          description: Requested seat number (subject to availability)
+        specialAssistance:
+          type: boolean
+          default: false
+
+    CheckinResponse:
+      type: object
+      properties:
+        checkinId: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid }
+        flightNumber: { type: string, example: "AE-204" }
+        seatNumber: { type: string, example: "14A" }
+        gate: { type: string, example: "B12" }
+        boardingTime: { type: string, format: date-time }
+        boardingPassId: { type: string, format: uuid }
+        boardingPassUrl: { type: string, example: "/boarding-pass/{id}/qr" }
+        bagBarcodes: { type: array, items: { type: string }, example: ["1234567890", "1234567891"] }
+        checkinMethod: { $ref: "#/components/schemas/CheckinMethod" }
+        checkedInAt: { type: string, format: date-time }
+
+    BoardingPassResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bookingRef: { type: string, example: "AL-2026-78421" }
+        passengerName: { type: string, example: "SMITH/JOHN" }
+        flightNumber: { type: string, example: "AE-204" }
+        origin: { type: string, example: "LHR" }
+        destination: { type: string, example: "JFK" }
+        seatNumber: { type: string, example: "14A" }
+        seatClass: { type: string, example: "ECONOMY" }
+        gate: { type: string, example: "B12" }
+        boardingTime: { type: string, format: date-time }
+        departureTime: { type: string, format: date-time }
+        sequenceNumber: { type: integer, description: "Check-in sequence" }
+        barcodeData: { type: string, description: "BCBP M1 format data encoded in barcode/QR" }
+
+paths:
+  /checkin:
+    post:
+      tags: [checkin]
+      summary: Perform check-in (CUSTOMER self, or GATE_AGENT for assisted)
+      operationId: performCheckin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CheckinRequest" }
+      responses:
+        "201":
+          description: Check-in successful; boarding pass and bag tags generated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckinResponse" }
+        "409":
+          description: Already checked in for this booking
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Booking not eligible (not CONFIRMED, check-in closed, departure < 45 min)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /checkin/{bookingId}:
+    get:
+      tags: [checkin]
+      summary: Get check-in status for a booking
+      operationId: getCheckinStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Check-in record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckinResponse" }
+        "404":
+          description: Not yet checked in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /boarding-pass/{id}:
+    get:
+      tags: [boarding-pass]
+      summary: Get boarding pass metadata
+      operationId: getBoardingPass
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Boarding pass data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BoardingPassResponse" }
+        "403":
+          description: Not your boarding pass
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /boarding-pass/{id}/qr:
+    get:
+      tags: [boarding-pass]
+      summary: Get boarding pass as QR PNG image
+      operationId: getBoardingPassQr
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: PNG image of boarding pass with QR code
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Not your boarding pass
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /flights/{flightId}/close-checkin:
+    post:
+      tags: [checkin]
+      summary: Close check-in for a flight (GATE_AGENT, AIRLINE_ADMIN)
+      operationId: closeCheckin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Check-in closed; final passenger count returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flightId: { type: string, format: uuid }
+                  checkedIn: { type: integer }
+                  totalBooked: { type: integer }
+                  noShows: { type: integer }
+
+  /health:
+    get:
+      tags: [checkin]
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200": { description: Healthy }
+
+  /ready:
+    get:
+      tags: [checkin]
+      summary: Readiness probe
+      operationId: ready
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready }

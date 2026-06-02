@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PASSENGER
+  GATE_AGENT
+  CHECK_IN_STAFF
+  BAGGAGE_HANDLER
+  FLIGHT_OPS
+  FLIGHT_ATTENDANT
+  AIRCRAFT_CREW
+  IMMIGRATION_OFFICER
+  ADMIN
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  roles        UserRole[] @default([PASSENGER])
+  cognitoSub   String?    @unique
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("users")
+}

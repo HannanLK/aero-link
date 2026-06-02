@@ -1,0 +1,149 @@
+name: Service CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: ap-southeast-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            identity-service:
+              - 'services/identity-service/**'
+              - 'packages/**'
+            flight-service:
+              - 'services/flight-service/**'
+              - 'packages/**'
+            booking-service:
+              - 'services/booking-service/**'
+              - 'packages/**'
+            payment-service:
+              - 'services/payment-service/**'
+              - 'packages/**'
+            checkin-service:
+              - 'services/checkin-service/**'
+              - 'packages/**'
+            baggage-service:
+              - 'services/baggage-service/**'
+              - 'packages/**'
+            notification-service:
+              - 'services/notification-service/**'
+              - 'packages/**'
+            webui:
+              - 'webui/**'
+              - 'packages/**'
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.services != '[]' }}
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npx turbo run lint --filter=${{ matrix.service }}
+      - name: Test
+        run: npx turbo run test --filter=${{ matrix.service }} -- --ci --coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage/
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, lint-and-test]
+    if: ${{ github.ref == 'refs/heads/main' && needs.detect-changes.outputs.services != '[]' }}
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Resolve service paths
+        id: paths
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          if [ "$SERVICE" = "webui" ]; then
+            echo "CONTEXT=webui" >> $GITHUB_OUTPUT
+            echo "DOCKERFILE=webui/Dockerfile" >> $GITHUB_OUTPUT
+            echo "HELM_VALUES=webui/helm/values.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "CONTEXT=services/$SERVICE" >> $GITHUB_OUTPUT
+            echo "DOCKERFILE=services/$SERVICE/Dockerfile" >> $GITHUB_OUTPUT
+            echo "HELM_VALUES=services/$SERVICE/helm/values.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.paths.outputs.CONTEXT }}
+          file: ${{ steps.paths.outputs.DOCKERFILE }}
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/aerolink-dev/${{ matrix.service }}:${{ steps.tag.outputs.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/aerolink-dev/${{ matrix.service }}:latest
+          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/aerolink-dev/${{ matrix.service }}:latest
+          cache-to: type=inline
+          build-args: |
+            VITE_API_BASE_URL=https://api.aerolink.app/api/v1
+
+      - name: Update Helm values
+        env:
+          SERVICE: ${{ matrix.service }}
+          IMAGE_TAG: ${{ steps.tag.outputs.IMAGE_TAG }}
+          HELM_VALUES: ${{ steps.paths.outputs.HELM_VALUES }}
+        run: |
+          sed -i "s|tag: .*|tag: \"${IMAGE_TAG}\"|" ${HELM_VALUES}
+          sed -i "s|repository: .*|repository: \"${ECR_REGISTRY}/aerolink-dev/${SERVICE}\"|" ${HELM_VALUES}
+
+      - name: Commit updated Helm values
+        env:
+          HELM_VALUES: ${{ steps.paths.outputs.HELM_VALUES }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${HELM_VALUES}
+          git diff --cached --quiet || git commit -m "ci: update ${{ matrix.service }} image to ${{ steps.tag.outputs.IMAGE_TAG }} [skip ci]"
+          git push

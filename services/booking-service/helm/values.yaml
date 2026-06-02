@@ -1,0 +1,65 @@
+replicaCount: 2
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+serviceAccount:
+  create: true
+  name: booking-service
+  annotations: {}
+
+env:
+  - name: NODE_ENV
+    value: production
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  secrets:
+    - secretKey: DATABASE_URL
+      remoteRef:
+        key: /aerolink/dev/booking-service/db-url
+    - secretKey: KAFKA_BROKERS
+      remoteRef:
+        key: /aerolink/dev/shared/kafka-brokers
+    - secretKey: REDIS_URL
+      remoteRef:
+        key: /aerolink/dev/shared/redis-url
+
+livenessProbe:
+  httpGet:
+    path: /api/v1/health/live
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /api/v1/health/ready
+    port: 3000
+  initialDelaySeconds: 20
+  periodSeconds: 10
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

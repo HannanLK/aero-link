@@ -1,0 +1,27 @@
+{
+  "name": "@aerolink/lambda-qr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lambda function: generates QR codes (boarding passes) and Code128 barcodes (baggage tags)",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "jest"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.3",
+    "jsbarcode": "^3.11.6",
+    "@aws-lambda-powertools/logger": "^2.2.0",
+    "@aws-lambda-powertools/tracer": "^2.2.0"
+  },
+  "optionalDependencies": {
+    "canvas": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.137",
+    "@types/qrcode": "^1.5.5",
+    "typescript": "^5.4.5",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.4"
+  }
+}

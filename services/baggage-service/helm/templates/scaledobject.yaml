@@ -1,0 +1,19 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Release.Name }}-keda
+spec:
+  scaleTargetRef:
+    name: {{ .Release.Name }}
+  minReplicaCount: {{ .Values.autoscaling.minReplicas | default 1 }}
+  maxReplicaCount: {{ .Values.autoscaling.maxReplicas | default 10 }}
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: "{{ .Values.kafka.bootstrapServers }}"
+        consumerGroup: "baggage-service-group"
+        topic: "aerolink.baggage.tag-created"
+        lagThreshold: "50"
+        offsetResetPolicy: latest

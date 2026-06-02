@@ -1,0 +1,103 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Additional common build outputs
+out/
+lib/
+/.cache/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment & secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+deploy.env
+infrastructure/deploy.env
+*.pem
+*.key
+*.p12
+# Environment & secrets — NEVER commit
+.env.test
+.env.production
+.env.development
+.env.*.local
+.envrc
+secrets.env
+secrets/
+
+# Terraform state — use remote backend
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# Test artifacts
+coverage/
+*.lcov
+test-results/
+# Test artifacts
+coverage/**
+.nyc_output/
+
+# Turbo cache
+.turbo/
+# Turbo cache
+.turbo/**
+
+# Turborepo / build caches
+.cache/
+.parcel-cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+# OS
+ehthumbs.db
+Desktop.ini
+
+# Docker
+*.log
+# Docker
+docker-compose.override.yml
+docker-compose.*.local.yml
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# k6 results
+k6-results/
+# Vite / Next / frontend
+dist/
+build/
+.next/
+.nuxt/
+.expo/
+
+# Prisma
+prisma/dev.db
+**/prisma/dev.db
+node_modules/.prisma
+
+# SQLite
+*.sqlite
+*.sqlite3
+
+# Misc
+*.tgz
+tmp/
+temp/
+coverage/

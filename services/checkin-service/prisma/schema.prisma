@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CheckinStatus {
+  NOT_CHECKED_IN
+  CHECKED_IN
+  BOARDING_PASS_ISSUED
+  BOARDED
+}
+
+model Checkin {
+  id           String        @id @default(uuid()) @db.Uuid
+  bookingId    String        @db.Uuid @unique
+  passengerId  String        @db.Uuid
+  flightId     String        @db.Uuid
+  seatNumber   String
+  status       CheckinStatus @default(NOT_CHECKED_IN)
+  boardingPass Json?
+  qrCode       String?       @db.Text
+  bagCount     Int           @default(0)
+  checkedInAt  DateTime?
+  boardedAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([passengerId])
+  @@index([flightId])
+  @@map("checkins")
+}

@@ -1,0 +1,230 @@
+openapi: "3.0.3"
+info:
+  title: AeroLink Baggage Service
+  description: Baggage registration, barcode/QR scan tracking, and custody chain management
+  version: "1.0.0"
+servers:
+  - url: https://api.aerolink.app/baggage
+  - url: http://localhost:3006
+
+tags:
+  - name: baggage
+    description: Bag lookup and status
+  - name: scan
+    description: Bag scan operations for Gate Agents
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message, correlationId]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        correlationId: { type: string, format: uuid }
+
+    BaggageStatus:
+      type: string
+      enum: [TAGGED, CHECKED_IN, LOADED, IN_TRANSIT, ARRIVED, DELIVERED, MISSING]
+
+    ScanRequest:
+      type: object
+      required: [status, location]
+      properties:
+        status: { $ref: "#/components/schemas/BaggageStatus" }
+        location:
+          type: string
+          example: "LHR-T5-BELT-3"
+          description: Airport IATA code + terminal + belt/zone identifier
+
+    BaggageScanEvent:
+      type: object
+      properties:
+        scanId: { type: string, format: uuid }
+        bagId: { type: string, format: uuid }
+        barcode: { type: string, example: "1234567890" }
+        status: { $ref: "#/components/schemas/BaggageStatus" }
+        location: { type: string }
+        scannedByUserId: { type: string, format: uuid }
+        scannedByName: { type: string }
+        scannedAt: { type: string, format: date-time }
+
+    BaggageResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        barcode: { type: string, example: "1234567890" }
+        qrImageUrl: { type: string, description: "Presigned S3 URL or base64 PNG" }
+        bookingId: { type: string, format: uuid }
+        bookingRef: { type: string, example: "AL-2026-78421" }
+        passengerId: { type: string, format: uuid }
+        passengerName: { type: string, description: "Visible to GATE_AGENT and above only" }
+        flightId: { type: string, format: uuid }
+        flightNumber: { type: string }
+        weight: { type: number, description: "kg" }
+        sequence: { type: integer, description: "Bag 1 of N" }
+        status: { $ref: "#/components/schemas/BaggageStatus" }
+        currentLocation: { type: string, nullable: true }
+        taggedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        scanHistory:
+          type: array
+          items: { $ref: "#/components/schemas/BaggageScanEvent" }
+
+    BaggageSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        barcode: { type: string }
+        sequence: { type: integer }
+        status: { $ref: "#/components/schemas/BaggageStatus" }
+        currentLocation: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+
+paths:
+  /baggage/{barcode}:
+    get:
+      tags: [baggage]
+      summary: Lookup bag by barcode or QR data (CUSTOMER for own bag; GATE_AGENT for any)
+      operationId: getBaggageByBarcode
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema: { type: string, example: "1234567890" }
+          description: 10-digit numeric barcode or QR payload string
+      responses:
+        "200":
+          description: Bag detail with full scan history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BaggageResponse" }
+        "403":
+          description: Not your bag
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Bag not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /baggage/{barcode}/scan:
+    post:
+      tags: [scan]
+      summary: Record a bag scan event and update custody status (GATE_AGENT, AIRLINE_ADMIN)
+      operationId: scanBag
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScanRequest" }
+      responses:
+        "200":
+          description: Scan recorded; Kafka event published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BaggageResponse" }
+        "409":
+          description: Invalid status transition (e.g. DELIVERED → CHECKED_IN)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ErrorResponse"
+                  - type: object
+                    properties:
+                      currentStatus: { $ref: "#/components/schemas/BaggageStatus" }
+                      allowedTransitions:
+                        type: array
+                        items: { $ref: "#/components/schemas/BaggageStatus" }
+        "403":
+          description: Forbidden — GATE_AGENT role required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /baggage/booking/{bookingId}:
+    get:
+      tags: [baggage]
+      summary: List all bags for a booking
+      operationId: getBaggageByBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: All bags for the booking
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BaggageSummary" }
+
+  /baggage/flight/{flightId}:
+    get:
+      tags: [baggage]
+      summary: List all bags for a flight (GATE_AGENT, FLIGHT_ATTENDANT, AIRLINE_ADMIN)
+      operationId: getBaggageByFlight
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/BaggageStatus" }
+      responses:
+        "200":
+          description: All bags for the flight
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flightId: { type: string, format: uuid }
+                  totalBags: { type: integer }
+                  loadedBags: { type: integer }
+                  missingBags: { type: integer }
+                  bags:
+                    type: array
+                    items: { $ref: "#/components/schemas/BaggageSummary" }
+
+  /health:
+    get:
+      tags: [baggage]
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200": { description: Healthy }
+
+  /ready:
+    get:
+      tags: [baggage]
+      summary: Readiness probe
+      operationId: ready
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready }

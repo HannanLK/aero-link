@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FlightStatus {
+  SCHEDULED
+  BOARDING
+  DEPARTED
+  IN_FLIGHT
+  LANDED
+  ARRIVED
+  DELAYED
+  CANCELLED
+}
+
+enum SeatClass {
+  ECONOMY
+  PREMIUM_ECONOMY
+  BUSINESS
+  FIRST
+}
+
+model Aircraft {
+  id           String   @id @default(uuid()) @db.Uuid
+  registration String   @unique
+  model        String
+  totalSeats   Int
+  seatMap      Json
+  flights      Flight[]
+  createdAt    DateTime @default(now())
+
+  @@map("aircraft")
+}
+
+model Flight {
+  id               String      @id @default(uuid()) @db.Uuid
+  flightNumber     String
+  origin           String      @db.Char(3)
+  destination      String      @db.Char(3)
+  scheduledDep     DateTime
+  scheduledArr     DateTime
+  status           FlightStatus @default(SCHEDULED)
+  aircraftId       String       @db.Uuid
+  aircraft         Aircraft     @relation(fields: [aircraftId], references: [id])
+  gate             String?
+  terminal         String?
+  availableSeats   Int
+  seats            Seat[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([flightNumber, scheduledDep])
+  @@index([origin, destination, scheduledDep])
+  @@map("flights")
+}
+
+model Seat {
+  id         String    @id @default(uuid()) @db.Uuid
+  flightId   String    @db.Uuid
+  flight     Flight    @relation(fields: [flightId], references: [id])
+  seatNumber String
+  class      SeatClass
+  isAvailable Boolean  @default(true)
+  lockedBy   String?   @db.Uuid
+  lockedUntil DateTime?
+
+  @@unique([flightId, seatNumber])
+  @@map("seats")
+}

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"D:\\\\4th_final\\\\sem3\\\\ecdw\\\\aero-link\" && \\(Get-Content \"node_modules/tar/package.json\" | ConvertFrom-Json\\).version)",
+      "PowerShell(cd \"D:\\\\4th_final\\\\sem3\\\\ecdw\\\\aero-link\" && \\(Get-Content \"node_modules/@mapbox/node-pre-gyp/package.json\" | ConvertFrom-Json\\).dependencies.tar)",
+      "Bash(npx shadcn@latest add card badge input select dialog table tabs separator avatar skeleton --yes)"
+    ]
+  }
+}

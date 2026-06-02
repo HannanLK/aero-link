@@ -1,0 +1,360 @@
+openapi: "3.0.3"
+info:
+  title: AeroLink Identity Service
+  description: Authentication, user management, and RBAC for AeroLink platform
+  version: "1.0.0"
+  contact:
+    name: AeroLink Engineering
+servers:
+  - url: https://api.aerolink.app/identity
+    description: Production
+  - url: http://localhost:3001
+    description: Local development
+
+tags:
+  - name: auth
+    description: OAuth2 authentication flows
+  - name: users
+    description: User profile management
+  - name: roles
+    description: Role administration (AIRLINE_ADMIN only)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito-issued JWT access token
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message, correlationId]
+      properties:
+        statusCode: { type: integer, example: 400 }
+        message: { type: string }
+        correlationId: { type: string, format: uuid }
+        details: { type: array, items: { type: string } }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, example: "john.smith@example.com" }
+        password: { type: string, format: password, minLength: 8 }
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, example: 3600 }
+        tokenType: { type: string, example: "Bearer" }
+
+    RegisterRequest:
+      type: object
+      required: [email, password, firstName, lastName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        firstName: { type: string, example: "John" }
+        lastName: { type: string, example: "Smith" }
+        phone: { type: string, example: "+447700900000" }
+        dateOfBirth: { type: string, format: date }
+        passportNumber: { type: string, example: "GH123456" }
+        nationality: { type: string, example: "GB" }
+
+    UserResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        firstName: { type: string }
+        lastName: { type: string }
+        roles: { type: array, items: { $ref: "#/components/schemas/RoleName" } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    RoleName:
+      type: string
+      enum: [CUSTOMER, FLIGHT_ATTENDANT, GATE_AGENT, IMMIGRATION_OFFICER, AIRLINE_ADMIN, AIRCRAFT_CREW]
+
+    AssignRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/RoleName" }
+
+    PaginatedUsers:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/UserResponse" } }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok, degraded, down] }
+        uptime: { type: number }
+        db: { type: string, enum: [ok, down] }
+        timestamp: { type: string, format: date-time }
+
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register a new customer account
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login and receive JWT tokens
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Tokens issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: New access token issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Invalidate tokens
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Logged out }
+
+  /users:
+    get:
+      tags: [users]
+      summary: List all users (AIRLINE_ADMIN only)
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: role
+          in: query
+          schema: { $ref: "#/components/schemas/RoleName" }
+      responses:
+        "200":
+          description: Paginated user list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedUsers" }
+        "403":
+          description: Forbidden — AIRLINE_ADMIN role required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /users/{id}:
+    get:
+      tags: [users]
+      summary: Get user profile
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "403":
+          description: Cannot view another user's profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    put:
+      tags: [users]
+      summary: Update user profile (own only, or AIRLINE_ADMIN)
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName: { type: string }
+                lastName: { type: string }
+                phone: { type: string }
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+    delete:
+      tags: [users]
+      summary: Delete user (own account or AIRLINE_ADMIN)
+      operationId: deleteUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: User deleted (GDPR erasure initiated) }
+
+  /users/{id}/roles:
+    post:
+      tags: [roles]
+      summary: Assign role to user (AIRLINE_ADMIN only)
+      operationId: assignRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssignRoleRequest" }
+      responses:
+        "200":
+          description: Role assigned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /users/{id}/roles/{role}:
+    delete:
+      tags: [roles]
+      summary: Remove role from user (AIRLINE_ADMIN only)
+      operationId: removeRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: role
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/RoleName" }
+      responses:
+        "200":
+          description: Role removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+
+  /health:
+    get:
+      tags: [auth]
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+
+  /ready:
+    get:
+      tags: [auth]
+      summary: Readiness probe
+      operationId: ready
+      responses:
+        "200": { description: Service ready }
+        "503": { description: Not ready (DB unavailable) }

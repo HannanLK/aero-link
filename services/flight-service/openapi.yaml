@@ -1,0 +1,407 @@
+openapi: "3.0.3"
+info:
+  title: AeroLink Flight Service
+  description: Flight schedules, aircraft seat maps, and real-time status
+  version: "1.0.0"
+servers:
+  - url: https://api.aerolink.app/flights
+  - url: http://localhost:3002
+
+tags:
+  - name: flights
+    description: Flight search and management
+  - name: seats
+    description: Seat map and availability
+  - name: aircraft
+    description: Aircraft type configuration
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message, correlationId]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        correlationId: { type: string, format: uuid }
+
+    FlightStatus:
+      type: string
+      enum: [SCHEDULED, BOARDING, GATE_CLOSED, DEPARTED, IN_AIR, LANDED, DELAYED, CANCELLED]
+
+    SeatClass:
+      type: string
+      enum: [ECONOMY, BUSINESS, FIRST]
+
+    SeatStatus:
+      type: string
+      enum: [AVAILABLE, LOCKED, BOOKED, BLOCKED]
+
+    FlightSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        flightNumber: { type: string, example: "AE-204" }
+        origin: { type: string, example: "LHR", description: "IATA airport code" }
+        destination: { type: string, example: "JFK" }
+        scheduledDeparture: { type: string, format: date-time }
+        scheduledArrival: { type: string, format: date-time }
+        estimatedDeparture: { type: string, format: date-time, nullable: true }
+        status: { $ref: "#/components/schemas/FlightStatus" }
+        gate: { type: string, example: "B12", nullable: true }
+        aircraftType: { type: string, example: "B737-800" }
+        availableSeats:
+          type: object
+          properties:
+            economy: { type: integer }
+            business: { type: integer }
+            first: { type: integer }
+        priceFrom: { type: number, example: 149.99 }
+        currency: { type: string, example: "GBP" }
+
+    FlightDetail:
+      allOf:
+        - $ref: "#/components/schemas/FlightSummary"
+        - type: object
+          properties:
+            terminal: { type: string }
+            aircraft: { $ref: "#/components/schemas/AircraftSummary" }
+            amenities: { type: array, items: { type: string } }
+            baggage:
+              type: object
+              properties:
+                carryOnKg: { type: number }
+                checkedKg: { type: number }
+                extraBagFee: { type: number }
+
+    SeatMap:
+      type: object
+      properties:
+        flightId: { type: string, format: uuid }
+        flightNumber: { type: string }
+        aircraft: { $ref: "#/components/schemas/AircraftSummary" }
+        updatedAt: { type: string, format: date-time }
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              class: { $ref: "#/components/schemas/SeatClass" }
+              rows:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    rowNumber: { type: integer }
+                    seats:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Seat"
+
+    Seat:
+      type: object
+      properties:
+        seatNumber: { type: string, example: "14A" }
+        class: { $ref: "#/components/schemas/SeatClass" }
+        status: { $ref: "#/components/schemas/SeatStatus" }
+        isWindow: { type: boolean }
+        isAisle: { type: boolean }
+        isExitRow: { type: boolean }
+        hasExtraLegroom: { type: boolean }
+        price: { type: number }
+        currency: { type: string }
+
+    AircraftSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        registration: { type: string, example: "G-AELP" }
+        type: { type: string, example: "B737-800" }
+        totalSeats: { type: integer }
+        economySeats: { type: integer }
+        businessSeats: { type: integer }
+        firstSeats: { type: integer }
+
+    AircraftDetail:
+      allOf:
+        - $ref: "#/components/schemas/AircraftSummary"
+        - type: object
+          properties:
+            manufacturer: { type: string }
+            range: { type: integer, description: "km" }
+            cruisingSpeed: { type: integer, description: "km/h" }
+            seatConfiguration: { type: string, example: "3-3" }
+
+    UpdateFlightStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/FlightStatus" }
+        gate: { type: string, nullable: true }
+        estimatedDeparture: { type: string, format: date-time, nullable: true }
+        delayReason: { type: string, nullable: true }
+
+    CreateFlightRequest:
+      type: object
+      required: [flightNumber, origin, destination, scheduledDeparture, scheduledArrival, aircraftId]
+      properties:
+        flightNumber: { type: string }
+        origin: { type: string, minLength: 3, maxLength: 3 }
+        destination: { type: string, minLength: 3, maxLength: 3 }
+        scheduledDeparture: { type: string, format: date-time }
+        scheduledArrival: { type: string, format: date-time }
+        aircraftId: { type: string, format: uuid }
+        gate: { type: string }
+        prices:
+          type: object
+          properties:
+            economy: { type: number }
+            business: { type: number }
+            first: { type: number }
+
+    PassengerManifest:
+      type: object
+      properties:
+        flightId: { type: string, format: uuid }
+        flightNumber: { type: string }
+        totalPassengers: { type: integer }
+        checkedIn: { type: integer }
+        passengers:
+          type: array
+          items:
+            type: object
+            properties:
+              bookingRef: { type: string }
+              passengerName: { type: string }
+              seatNumber: { type: string }
+              checkedIn: { type: boolean }
+              bagsCount: { type: integer }
+
+paths:
+  /flights:
+    get:
+      tags: [flights]
+      summary: Search available flights
+      operationId: searchFlights
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: origin
+          in: query
+          required: true
+          schema: { type: string, example: "LHR" }
+        - name: destination
+          in: query
+          required: true
+          schema: { type: string, example: "JFK" }
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: passengers
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: class
+          in: query
+          schema: { $ref: "#/components/schemas/SeatClass" }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: List of matching flights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/FlightSummary" } }
+                  total: { type: integer }
+        "400":
+          description: Invalid search parameters
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    post:
+      tags: [flights]
+      summary: Create a new flight (AIRLINE_ADMIN only)
+      operationId: createFlight
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateFlightRequest" }
+      responses:
+        "201":
+          description: Flight created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FlightDetail" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /flights/{id}:
+    get:
+      tags: [flights]
+      summary: Get flight details
+      operationId: getFlight
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Flight detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FlightDetail" }
+        "404":
+          description: Flight not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /flights/{id}/status:
+    patch:
+      tags: [flights]
+      summary: Update flight status (AIRLINE_ADMIN, AIRCRAFT_CREW, GATE_AGENT)
+      operationId: updateFlightStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateFlightStatusRequest" }
+      responses:
+        "200":
+          description: Status updated; event published to Kafka
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FlightDetail" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /flights/{id}/seats:
+    get:
+      tags: [seats]
+      summary: Get real-time seat map for a flight
+      operationId: getSeatMap
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Full seat map with availability
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SeatMap" }
+          headers:
+            X-Cache:
+              schema: { type: string, enum: [HIT, MISS] }
+              description: Redis cache status
+
+  /flights/{id}/manifest:
+    get:
+      tags: [flights]
+      summary: Get passenger manifest (FLIGHT_ATTENDANT, GATE_AGENT, AIRLINE_ADMIN, AIRCRAFT_CREW)
+      operationId: getManifest
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Passenger manifest
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PassengerManifest" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /aircraft:
+    get:
+      tags: [aircraft]
+      summary: List aircraft types (AIRLINE_ADMIN only)
+      operationId: listAircraft
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Aircraft list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AircraftSummary" }
+
+  /aircraft/{id}:
+    get:
+      tags: [aircraft]
+      summary: Get aircraft detail and seat configuration
+      operationId: getAircraft
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Aircraft detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AircraftDetail" }
+
+  /health:
+    get:
+      tags: [flights]
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200": { description: Healthy }
+
+  /ready:
+    get:
+      tags: [flights]
+      summary: Readiness probe
+      operationId: ready
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready }

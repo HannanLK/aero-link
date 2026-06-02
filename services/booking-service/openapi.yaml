@@ -1,0 +1,279 @@
+openapi: "3.0.3"
+info:
+  title: AeroLink Booking Service
+  description: Flight booking lifecycle and saga state management
+  version: "1.0.0"
+servers:
+  - url: https://api.aerolink.app/bookings
+  - url: http://localhost:3003
+
+tags:
+  - name: bookings
+    description: Booking CRUD and lifecycle
+  - name: saga
+    description: Distributed saga status
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message, correlationId]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        correlationId: { type: string, format: uuid }
+
+    SeatClass:
+      type: string
+      enum: [ECONOMY, BUSINESS, FIRST]
+
+    BookingStatus:
+      type: string
+      enum: [PENDING, AWAITING_SEAT_LOCK, SEAT_LOCKED, AWAITING_PAYMENT, CONFIRMED, COMPENSATING, CANCELLED]
+
+    CreateBookingRequest:
+      type: object
+      required: [flightId, seatNumber, seatClass, paymentMethodId]
+      properties:
+        flightId:
+          type: string
+          format: uuid
+        seatNumber:
+          type: string
+          example: "14A"
+        seatClass:
+          $ref: "#/components/schemas/SeatClass"
+        paymentMethodId:
+          type: string
+          description: Tokenised payment method from Stripe stub
+          example: "pm_test_4242424242424242"
+        specialRequests:
+          type: string
+          nullable: true
+          example: "Wheelchair assistance required"
+      description: |
+        Clients MUST supply an idempotency key via the `Idempotency-Key` header (UUID v4).
+        Duplicate requests with the same key return the original response without re-processing.
+
+    BookingResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bookingRef: { type: string, example: "AL-2026-78421" }
+        passengerId: { type: string, format: uuid }
+        flightId: { type: string, format: uuid }
+        flightNumber: { type: string, example: "AE-204" }
+        origin: { type: string, example: "LHR" }
+        destination: { type: string, example: "JFK" }
+        seatNumber: { type: string, example: "14A" }
+        seatClass: { $ref: "#/components/schemas/SeatClass" }
+        status: { $ref: "#/components/schemas/BookingStatus" }
+        totalAmount:
+          type: object
+          properties:
+            amount: { type: number, example: 459.99 }
+            currency: { type: string, example: "GBP" }
+        departureDatetime: { type: string, format: date-time }
+        arrivalDatetime: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        transactionId: { type: string, format: uuid, nullable: true }
+
+    SagaStatusResponse:
+      type: object
+      properties:
+        bookingId: { type: string, format: uuid }
+        bookingRef: { type: string }
+        sagaStatus: { $ref: "#/components/schemas/BookingStatus" }
+        transitions:
+          type: array
+          items:
+            type: object
+            properties:
+              from: { $ref: "#/components/schemas/BookingStatus" }
+              to: { $ref: "#/components/schemas/BookingStatus" }
+              occurredAt: { type: string, format: date-time }
+              eventId: { type: string, format: uuid }
+        failureReason: { type: string, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+
+    PaginatedBookings:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/BookingResponse" } }
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+paths:
+  /bookings:
+    post:
+      tags: [bookings]
+      summary: Create a new booking and initiate saga
+      operationId: createBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+          description: UUID v4 idempotency key — duplicate requests return original response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBookingRequest" }
+      responses:
+        "202":
+          description: Booking initiated (saga running asynchronously)
+          headers:
+            Location:
+              schema: { type: string }
+              description: "URL to poll saga status: /bookings/{id}/status"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookingId: { type: string, format: uuid }
+                  status: { type: string, example: "PENDING" }
+                  sagaStatusUrl: { type: string, example: "/bookings/uuid/status" }
+        "409":
+          description: Duplicate idempotency key with different payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+    get:
+      tags: [bookings]
+      summary: List bookings (own bookings for CUSTOMER; all for AIRLINE_ADMIN / GATE_AGENT)
+      operationId: listBookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/BookingStatus" }
+        - name: flightId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Paginated bookings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedBookings" }
+
+  /bookings/{id}:
+    get:
+      tags: [bookings]
+      summary: Get booking detail
+      operationId: getBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Booking detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookingResponse" }
+        "403":
+          description: Forbidden — not your booking
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      tags: [bookings]
+      summary: Cancel booking (initiates compensation saga if needed)
+      operationId: cancelBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "202":
+          description: Cancellation initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookingId: { type: string, format: uuid }
+                  status: { type: string, example: "COMPENSATING" }
+                  refundExpected: { type: boolean }
+        "409":
+          description: Booking cannot be cancelled (already CANCELLED or within 24h of departure)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /bookings/{id}/status:
+    get:
+      tags: [saga]
+      summary: Poll booking saga status
+      operationId: getBookingStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Full saga audit trail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SagaStatusResponse" }
+
+  /health:
+    get:
+      tags: [bookings]
+      summary: Liveness probe
+      operationId: health
+      responses:
+        "200": { description: Healthy }
+
+  /ready:
+    get:
+      tags: [bookings]
+      summary: Readiness probe
+      operationId: ready
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready }

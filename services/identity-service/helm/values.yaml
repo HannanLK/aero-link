@@ -1,0 +1,70 @@
+replicaCount: 2
+
+image:
+  repository: ""  # Set by CI: <account>.dkr.ecr.<region>.amazonaws.com/aerolink-dev/identity-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+serviceAccount:
+  create: true
+  name: identity-service
+  annotations: {}  # eks.amazonaws.com/role-arn set by Terraform outputs
+
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "3000"
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  secrets:
+    - secretKey: DATABASE_URL
+      remoteRef:
+        key: /aerolink/dev/identity-service/db-url
+    - secretKey: JWT_SECRET
+      remoteRef:
+        key: /aerolink/dev/shared/jwt-public-key
+    - secretKey: JWT_REFRESH_SECRET
+      remoteRef:
+        key: /aerolink/dev/shared/jwt-public-key
+    - secretKey: KAFKA_BROKERS
+      remoteRef:
+        key: /aerolink/dev/shared/kafka-brokers
+
+livenessProbe:
+  httpGet:
+    path: /api/v1/health/live
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /api/v1/health/ready
+    port: 3000
+  initialDelaySeconds: 20
+  periodSeconds: 10
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

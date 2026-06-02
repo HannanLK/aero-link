@@ -1,0 +1,13 @@
+variable "prefix"                        { type = string }
+variable "eks_cluster_name"              { type = string }
+variable "eks_cluster_endpoint"          { type = string }
+variable "eks_cluster_ca"                { type = string }
+variable "aws_region"                    { type = string }
+variable "vpc_id"                        { type = string }
+variable "public_subnet_ids"             { type = list(string) }
+variable "lbc_role_arn"                  { type = string }
+variable "cluster_autoscaler_role_arn"   { type = string }
+variable "external_secrets_role_arn"     { type = string }
+variable "fluent_bit_role_arn"           { type = string }
+variable "argocd_ingress_certificate_arn" { type = string }
+variable "domain_name"                   { type = string }

@@ -1,0 +1,11 @@
+output "identity_service_role_arn"      { value = aws_iam_role.identity_service.arn }
+output "flight_service_role_arn"        { value = aws_iam_role.flight_service.arn }
+output "booking_service_role_arn"       { value = aws_iam_role.booking_service.arn }
+output "payment_service_role_arn"       { value = aws_iam_role.payment_service.arn }
+output "checkin_service_role_arn"       { value = aws_iam_role.checkin_service.arn }
+output "baggage_service_role_arn"       { value = aws_iam_role.baggage_service.arn }
+output "notification_service_role_arn"  { value = aws_iam_role.notification_service.arn }
+output "lbc_role_arn"                   { value = aws_iam_role.lbc.arn }
+output "cluster_autoscaler_role_arn"    { value = aws_iam_role.cluster_autoscaler.arn }
+output "external_secrets_role_arn"      { value = aws_iam_role.external_secrets.arn }
+output "fluent_bit_role_arn"            { value = aws_iam_role.fluent_bit.arn }

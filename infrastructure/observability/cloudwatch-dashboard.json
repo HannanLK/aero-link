@@ -1,0 +1,137 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "properties": {
+        "markdown": "# AeroLink Platform Dashboard\n**Environment:** dev | **Region:** ap-southeast-1"
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "API Gateway — Requests per Minute",
+        "metrics": [
+          ["AWS/ApiGateway", "Count", "Stage", "$default", { "stat": "Sum", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "API Gateway — P99 Latency (ms)",
+        "metrics": [
+          ["AWS/ApiGateway", "IntegrationLatency", "Stage", "$default", { "stat": "p99", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "API Gateway — 4xx & 5xx Error Rate",
+        "metrics": [
+          ["AWS/ApiGateway", "4XXError", "Stage", "$default", { "stat": "Sum", "period": 60 }],
+          ["AWS/ApiGateway", "5XXError", "Stage", "$default", { "stat": "Sum", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "EKS Node CPU Utilization",
+        "metrics": [
+          ["ContainerInsights", "node_cpu_utilization", "ClusterName", "aerolink-dev-eks", { "stat": "Average", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "EKS Node Memory Utilization",
+        "metrics": [
+          ["ContainerInsights", "node_memory_utilization", "ClusterName", "aerolink-dev-eks", { "stat": "Average", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "Aurora — DatabaseConnections",
+        "metrics": [
+          ["AWS/RDS", "DatabaseConnections", { "stat": "Average", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "Aurora — WriteLatency / ReadLatency (ms)",
+        "metrics": [
+          ["AWS/RDS", "WriteLatency", { "stat": "Average", "period": 60 }],
+          ["AWS/RDS", "ReadLatency", { "stat": "Average", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "ElastiCache Redis — CacheHitRate",
+        "metrics": [
+          ["AWS/ElastiCache", "CacheHitRate", { "stat": "Average", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "MSK — OffsetLag per Consumer Group",
+        "metrics": [
+          ["AWS/Kafka", "OffsetLag", "Cluster Name", "aerolink-dev-msk", "Consumer Group", "booking-service-group", { "stat": "Maximum", "period": 60 }],
+          ["AWS/Kafka", "OffsetLag", "Cluster Name", "aerolink-dev-msk", "Consumer Group", "flight-service-group", { "stat": "Maximum", "period": 60 }],
+          ["AWS/Kafka", "OffsetLag", "Cluster Name", "aerolink-dev-msk", "Consumer Group", "notification-service-group", { "stat": "Maximum", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "Lambda QR Generator — Duration p99",
+        "metrics": [
+          ["AWS/Lambda", "Duration", "FunctionName", "aerolink-dev-qr-generator", { "stat": "p99", "period": 60 }]
+        ],
+        "view": "timeSeries",
+        "period": 60
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "CloudFront — Requests & Errors",
+        "metrics": [
+          ["AWS/CloudFront", "Requests", "Region", "Global", { "stat": "Sum", "period": 300 }],
+          ["AWS/CloudFront", "5xxErrorRate", "Region", "Global", { "stat": "Average", "period": 300 }]
+        ],
+        "view": "timeSeries",
+        "period": 300
+      }
+    }
+  ]
+}
