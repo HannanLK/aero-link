@@ -43,6 +43,9 @@ echo "Writing shared secrets ..."
 put shared/jwt-public-key "$(openssl rand -base64 48)"
 put shared/kafka-brokers  "$MSK"
 put shared/redis-url      "redis://${REDIS}:6379"
+# Admin connection (to the default 'postgres' DB) — used by the platform-init
+# db-bootstrap Job to CREATE the per-service databases.
+put shared/aurora-admin-url "postgresql://${USER}:${PW}@${AURORA}:5432/postgres"
 
 echo "Writing Stripe key ..."
 put payment-service/stripe-api-key "$STRIPE_SECRET_KEY"
@@ -51,9 +54,6 @@ put payment-service/stripe-api-key "$STRIPE_SECRET_KEY"
 put shared/elastic-apm-server-url   "disabled"
 put shared/elastic-apm-secret-token "disabled"
 
-echo "Done. NOTE: the 5 service databases (identity_db, flight_db, …) must exist"
-echo "on the Aurora cluster. If you used a single default DB, point every db-url"
-echo "at it, or create them once with:"
-echo "  for db in identity flight booking payment checkin; do"
-echo "    psql \"postgresql://${USER}:***@${AURORA}:5432/postgres\" -c \"CREATE DATABASE \${db}_db;\";"
-echo "  done"
+echo "Done. The per-service databases (identity_db, flight_db, booking_db,"
+echo "payment_db, checkin_db) are created in-cluster by the platform-init"
+echo "db-bootstrap Job (ArgoCD PreSync hook) using shared/aurora-admin-url."

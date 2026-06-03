@@ -7,6 +7,9 @@ spec:
   generators:
     - list:
         elements:
+          - service: platform-init
+            path: infrastructure/helm/platform-init
+            namespace: aerolink
           - service: identity-service
             path: services/identity-service/helm
             namespace: aerolink
@@ -38,7 +41,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/YOUR_ORG/aero-link.git   # replace with actual repo
+        repoURL: https://github.com/HannanLK/aero-link.git   # replace with actual repo
         targetRevision: main
         path: "{{path}}"
         helm:

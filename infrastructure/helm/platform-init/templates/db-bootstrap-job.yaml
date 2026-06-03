@@ -1,0 +1,42 @@
+# Creates the per-service databases on the shared Aurora cluster.
+# sync-wave -1 → runs after the secret (wave -2), before the service
+# Deployments (wave 0). ArgoCD waits for this Job to complete before syncing
+# the apps, whose Prisma `db push` init-containers then populate the schema.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-bootstrap
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: db-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-bootstrap
+          image: {{ .Values.postgresImage }}
+          env:
+            - name: ADMIN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: platform-init-secrets
+                  key: AURORA_ADMIN_URL
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Bootstrapping databases..."
+              for db in {{ range .Values.databases }}{{ . }} {{ end }}; do
+                if psql "$ADMIN_URL" -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1; then
+                  echo "  $db exists"
+                else
+                  echo "  creating $db"
+                  psql "$ADMIN_URL" -c "CREATE DATABASE $db"
+                fi
+              done
+              echo "Done."

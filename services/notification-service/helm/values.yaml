@@ -1,0 +1,67 @@
+replicaCount: 2
+
+image:
+  repository: ""  # set by CI: <account>.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/notification-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+serviceAccount:
+  create: true
+  name: notification-service
+  annotations: {}  # eks.amazonaws.com/role-arn injected by Terraform/IRSA
+
+livenessProbe:
+  httpGet:
+    path: /api/v1/health/live
+    port: 3000
+  initialDelaySeconds: 20
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /api/v1/health/ready
+    port: 3000
+  initialDelaySeconds: 25
+  periodSeconds: 10
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+autoscaling:
+  enabled: false
+
+migrations:
+  enabled: false
+
+env:
+  - name: NODE_ENV
+    value: production
+  - name: PORT
+    value: "3000"
+  - name: AWS_REGION
+    value: us-east-1
+  - name: KAFKA_AUTH
+    value: iam
+  - name: NOTIFICATION_TABLE_NAME
+    value: aerolink-dev-notifications
+  - name: SES_FROM_ADDRESS
+    value: hannanmunas76@gmail.com
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  secrets:
+    - secretKey: KAFKA_BROKERS
+      remoteRef: { key: /aerolink/dev/shared/kafka-brokers }

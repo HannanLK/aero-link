@@ -82,3 +82,23 @@ API_BASE_URL=https://<api>/api/v1 ./run-load-tests.sh all
 
 ## Still outstanding (not code) for top marks
 - **Final Report (PDF)** and **Presentation slides** — the two graded deliverables that don't exist yet. I can generate both from this codebase + the captured test/perf results on request.
+
+---
+
+## 7. GitOps / EKS deployment completeness (ArgoCD + GitHub Actions)
+
+Running `terraform apply` alone did NOT yield a running app. These gaps were closed so the **push → Actions → ECR → ArgoCD sync** chain actually works:
+
+- **CI region fixed** — both GitHub Actions workflows used `ap-southeast-1`; changed to `us-east-1` (ECR registry + OIDC now match the deployment region).
+- **ApplicationSet repoURL** — set to `https://github.com/HannanLK/aero-link` in both the standalone manifest and the Terraform-applied one (`eks-addons/main.tf`). Also switched the Terraform ApplicationSet to **per-element paths** (it previously hardcoded `services/{{service}}/helm`, which was wrong for `webui`).
+- **Helm charts completed for all 7 services** — flight, payment, checkin, baggage, notification had missing/partial charts; now each has Deployment, Service, ServiceAccount, ExternalSecret, PDB (+ HPA, or KEDA ScaledObject for baggage/notification). All containers listen on port 3000 (`PORT=3000`) to match probes.
+- **Health endpoints added** — booking, payment, checkin, baggage, notification had none, so their probes could never pass. Added `/api/v1/health/live` + `/ready`.
+- **Database schema creation** — no Prisma migration files exist, so each Prisma service now runs a `prisma db push` **init-container** (`migrations.enabled`). The per-service databases are created first by a new **`platform-init`** chart: a `db-bootstrap` Job (ArgoCD **sync-wave -1**) creates `identity_db … checkin_db` from `shared/aurora-admin-url`.
+- **Kafka on MSK** — service Kafka clients were plaintext (local-only). Added a shared `createKafka()` factory that uses **TLS + SASL/IAM** when `KAFKA_AUTH=iam` (via `aws-msk-iam-sasl-signer-js`), plaintext locally. Topics (MSK has auto-create disabled) are now created idempotently in-app via `ensureTopics()` on producer startup, reusing each pod's IRSA auth.
+
+### Deployment order (already handled by deploy.sh)
+Secrets must be loaded (Step 8, now incl. `shared/aurora-admin-url`) **before** ArgoCD syncs (Step 9). ArgoCD then: platform-init secret (wave -2) → db-bootstrap Job (wave -1) → service apps (wave 0, whose init-containers run `prisma db push`).
+
+### Known remaining (flagged, not blocking the pipeline)
+- The **notification-service has no Kafka consumer** (only an SES/SNS service class), yet its KEDA ScaledObject scales on Kafka lag — it won't receive events until a consumer is added.
+- The **MSK IAM Kafka path and db-bootstrap Job are untested** from this environment (no live AWS). They're written to the correct AWS patterns but are the most likely to need a small tweak on first real sync — watch the `db-bootstrap` Job log and the first service pod's init-container log.

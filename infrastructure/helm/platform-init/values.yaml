@@ -1,0 +1,9 @@
+# Databases created on the shared Aurora cluster (one per Prisma service).
+databases:
+  - identity_db
+  - flight_db
+  - booking_db
+  - payment_db
+  - checkin_db
+
+postgresImage: postgres:16-alpine

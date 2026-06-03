@@ -3,6 +3,7 @@ resource "aws_ecr_repository" "services" {
 
   name                 = "${var.prefix}/${each.value}"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -20,6 +21,7 @@ resource "aws_ecr_repository" "services" {
 resource "aws_ecr_repository" "lambda_qr" {
   name                 = "${var.prefix}/lambda-qr"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration { scan_on_push = true }
 

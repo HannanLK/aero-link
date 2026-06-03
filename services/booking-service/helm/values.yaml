@@ -28,9 +28,18 @@ serviceAccount:
   name: booking-service
   annotations: {}
 
+migrations:
+  enabled: true   # Prisma db push init-container
+
 env:
   - name: NODE_ENV
     value: production
+  - name: PORT
+    value: "3000"
+  - name: AWS_REGION
+    value: us-east-1
+  - name: KAFKA_AUTH
+    value: iam
 
 externalSecrets:
   enabled: true

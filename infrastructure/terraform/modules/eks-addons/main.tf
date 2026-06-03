@@ -206,14 +206,15 @@ resource "kubernetes_manifest" "argocd_appset" {
       generators = [{
         list = {
           elements = [
-            { service = "identity-service",      namespace = "aerolink" },
-            { service = "flight-service",         namespace = "aerolink" },
-            { service = "booking-service",        namespace = "aerolink" },
-            { service = "payment-service",        namespace = "aerolink" },
-            { service = "checkin-service",        namespace = "aerolink" },
-            { service = "baggage-service",        namespace = "aerolink" },
-            { service = "notification-service",   namespace = "aerolink" },
-            { service = "webui",                  namespace = "aerolink" },
+            { service = "platform-init",        path = "infrastructure/helm/platform-init", namespace = "aerolink" },
+            { service = "identity-service",     path = "services/identity-service/helm",     namespace = "aerolink" },
+            { service = "flight-service",       path = "services/flight-service/helm",       namespace = "aerolink" },
+            { service = "booking-service",      path = "services/booking-service/helm",      namespace = "aerolink" },
+            { service = "payment-service",      path = "services/payment-service/helm",      namespace = "aerolink" },
+            { service = "checkin-service",      path = "services/checkin-service/helm",      namespace = "aerolink" },
+            { service = "baggage-service",      path = "services/baggage-service/helm",      namespace = "aerolink" },
+            { service = "notification-service", path = "services/notification-service/helm", namespace = "aerolink" },
+            { service = "webui",                path = "webui/helm",                         namespace = "aerolink" },
           ]
         }
       }]
@@ -222,9 +223,9 @@ resource "kubernetes_manifest" "argocd_appset" {
         spec = {
           project = "default"
           source = {
-            repoURL        = "https://github.com/your-org/aero-link"
-            targetRevision = "HEAD"
-            path           = "services/{{service}}/helm"
+            repoURL        = "https://github.com/HannanLK/aero-link"
+            targetRevision = "main"
+            path           = "{{path}}"
           }
           destination = {
             server    = "https://kubernetes.default.svc"

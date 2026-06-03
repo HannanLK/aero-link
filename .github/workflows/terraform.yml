@@ -19,7 +19,7 @@ on:
 
 env:
   TF_WORKING_DIR: infrastructure/terraform/environments/dev
-  AWS_REGION: ap-southeast-1
+  AWS_REGION: us-east-1
 
 permissions:
   id-token: write

@@ -126,6 +126,14 @@ if ! skip_before 7; then
       docker build -t "$REGISTRY/aerolink-dev/$svc:latest" -f "services/$svc/Dockerfile" .
       docker push "$REGISTRY/aerolink-dev/$svc:latest"
     done
+    # webui is a containerised nginx app (served via ALB + CloudFront), built
+    # from its own context with the API URL baked in at build time.
+    say "building webui"
+    docker build -t "$REGISTRY/aerolink-dev/webui:latest" \
+      --build-arg "VITE_API_BASE_URL=https://api.${DOMAIN_NAME}/api/v1" \
+      --build-arg "VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}" \
+      -f "$REPO/webui/Dockerfile" "$REPO/webui"
+    docker push "$REGISTRY/aerolink-dev/webui:latest"
     cd "$TF_DIR"
   fi
 fi
@@ -155,26 +163,18 @@ if ! skip_before 10; then
   done
 fi
 
-# ── STEP 11 — webui build + deploy ───────────────────────────────────────────
+# ── STEP 11 — frontend verification ──────────────────────────────────────────
+# NOTE: the webui is NOT an S3 static site. It is a containerised nginx app
+# deployed by Argo CD (webui/helm), exposed through the ALB ingress, and
+# fronted by CloudFront. So there is nothing to "sync" — Step 7 pushed the
+# image and Step 9's Argo CD sync deploys it. This step only verifies it.
 if ! skip_before 11; then
-  step 11 "Build webui and sync to S3 + CloudFront"
-  if confirm; then
-    API=$(terraform output -raw api_gateway_url)
-    WS=$(terraform output -raw api_gateway_websocket_url 2>/dev/null || echo "")
-    cd "$REPO/webui"
-    {
-      echo "VITE_API_BASE_URL=${API}/api/v1"
-      [ -n "$WS" ] && echo "VITE_WS_BASE_URL=${WS}"
-      echo "VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}"
-    } > .env.production
-    npm run build
-    BUCKET="aerolink-dev-webui"   # adjust if your s3-cloudfront module names it differently
-    DIST=$(cd "$TF_DIR" && terraform output -raw cloudfront_distribution_id 2>/dev/null || true)
-    aws s3 sync dist/ "s3://${BUCKET}/" --delete
-    [ -n "$DIST" ] && aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"
-    cd "$TF_DIR"
-    say "Frontend live via CloudFront."
-  fi
+  step 11 "Verify frontend (served via CloudFront → ALB → webui pod)"
+  CF=$(terraform output -raw cloudfront_distribution_domain 2>/dev/null || echo "")
+  echo "  CloudFront domain : ${CF:-<pending>}"
+  echo "  Site URL          : https://${DOMAIN_NAME}"
+  kubectl -n aerolink get deploy webui 2>/dev/null || warn "webui pod not synced yet (check Argo CD)."
+  printf "  %-30s " "https://${DOMAIN_NAME}"; curl -fsS -o /dev/null -w "HTTP %{http_code}\n" "https://${DOMAIN_NAME}" || warn "not resolving yet (DNS/ACM may still be propagating)."
 fi
 
 say "Deployment script complete. App URL: https://${DOMAIN_NAME}"

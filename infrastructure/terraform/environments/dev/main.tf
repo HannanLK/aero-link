@@ -284,6 +284,7 @@ resource "aws_secretsmanager_secret" "service_secrets" {
     "payment-service/stripe-api-key",
     "checkin-service/db-url",
     "shared/jwt-public-key",
+    "shared/aurora-admin-url",
     "shared/kafka-brokers",
     "shared/redis-url",
     "shared/elastic-apm-server-url",

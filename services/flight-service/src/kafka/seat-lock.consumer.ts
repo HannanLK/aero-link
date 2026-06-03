@@ -1,5 +1,6 @@
 import { Injectable, Inject, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
+import { createKafka } from '@aerolink/common-middleware';
 import { TOPICS, BookingCreatedEventSchema } from '@aerolink/events';
 import { SeatsService } from '../seats/seats.service';
 
@@ -12,7 +13,7 @@ export class SeatLockConsumer implements OnModuleInit, OnModuleDestroy {
     @Inject('KAFKA_CONFIG') private readonly config: { brokers: string[]; clientId: string; groupId: string },
     private readonly seatsService: SeatsService,
   ) {
-    const kafka = new Kafka({ clientId: this.config.clientId, brokers: this.config.brokers });
+    const kafka = createKafka({ clientId: this.config.clientId, brokers: this.config.brokers });
     this.consumer = kafka.consumer({ groupId: this.config.groupId });
   }
 

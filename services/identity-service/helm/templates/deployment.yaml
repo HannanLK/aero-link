@@ -4,7 +4,6 @@ metadata:
   name: {{ .Release.Name }}
   labels:
     app: {{ .Release.Name }}
-    version: {{ .Values.image.tag | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -14,13 +13,23 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
-      annotations:
-        prometheus.io/scrape: "false"
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+      {{- if and .Values.migrations .Values.migrations.enabled }}
+      # Apply the Prisma schema to the database before the app starts.
+      # No migration files exist in the repo, so we use `db push` (idempotent).
+      initContainers:
+        - name: prisma-db-push
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+      {{- end }}
       containers:
         - name: {{ .Release.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

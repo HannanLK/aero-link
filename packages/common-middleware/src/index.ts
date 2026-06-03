@@ -3,3 +3,4 @@ export * from './roles.guard';
 export * from './http-exception.filter';
 export * from './request-logger.interceptor';
 export * from './tracing';
+export * from './kafka-factory';
