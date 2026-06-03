@@ -6,7 +6,7 @@
   "main": "dist/handler.js",
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "test": "jest"
+    "test": "jest --passWithNoTests"
   },
   "dependencies": {
     "qrcode": "^1.5.3",

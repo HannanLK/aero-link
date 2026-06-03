@@ -8,8 +8,8 @@
     "webui"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "test": "turbo run test",
+    "build": "turbo run build --concurrency=1",
+    "test": "turbo run test --concurrency=1",
     "lint": "turbo run lint",
     "packages:build": "npm run build --workspace=packages/shared-kernel --workspace=packages/events --workspace=packages/common-middleware",
     "dev": "turbo run dev --parallel",

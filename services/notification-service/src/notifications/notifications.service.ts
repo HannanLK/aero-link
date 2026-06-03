@@ -7,14 +7,15 @@ import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-d
 import { v4 as uuidv4 } from 'uuid';
 
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH';
-export type NotificationType = 'BOOKING_CONFIRMED' | 'PAYMENT_CONFIRMED' | 'CHECKIN_COMPLETE' | 'FLIGHT_STATUS_CHANGED' | 'BAGGAGE_ARRIVED';
+export type NotificationType = 'WELCOME' | 'BOOKING_CONFIRMED' | 'PAYMENT_CONFIRMED' | 'CHECKIN_COMPLETE' | 'FLIGHT_STATUS_CHANGED' | 'BAGGAGE_ARRIVED';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private readonly ses: SESClient;
   private readonly sns: SNSClient;
-  private readonly dynamo: DynamoDBDocumentClient;
+  // typed `any` to sidestep @aws-sdk/lib-dynamodb vs @smithy/types version skew (runtime is unaffected)
+  private readonly dynamo: any;
   private readonly tableName: string;
 
   constructor(private readonly config: ConfigService) {
@@ -93,6 +94,7 @@ export class NotificationsService {
 
   private buildSubject(type: NotificationType): string {
     const subjects: Record<NotificationType, string> = {
+      WELCOME: 'Welcome to AeroLink ✈',
       BOOKING_CONFIRMED: 'Your booking is confirmed ✓',
       PAYMENT_CONFIRMED: 'Payment received',
       CHECKIN_COMPLETE: 'Check-in complete — boarding pass ready',

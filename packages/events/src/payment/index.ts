@@ -11,6 +11,7 @@ export const PaymentCompletedEventSchema = BaseEventSchema.extend({
   amount: MoneySchema,
   paymentProvider: z.literal('STRIPE_STUB'),
   processedAt: z.string().datetime(),
+  paymentRef: z.string().optional(),
 });
 export type PaymentCompletedEvent = z.infer<typeof PaymentCompletedEventSchema>;
 

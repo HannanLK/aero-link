@@ -21,7 +21,8 @@ const VALID_TRANSITIONS: Record<BaggageStatus, BaggageStatus[]> = {
 @Injectable()
 export class BaggageService {
   private readonly logger = new Logger(BaggageService.name);
-  private readonly dynamo: DynamoDBDocumentClient;
+  // typed `any` to sidestep @aws-sdk/lib-dynamodb vs @smithy/types version skew (runtime is unaffected)
+  private readonly dynamo: any;
   private readonly tableName: string;
 
   constructor(

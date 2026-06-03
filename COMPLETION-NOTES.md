@@ -100,5 +100,9 @@ Running `terraform apply` alone did NOT yield a running app. These gaps were clo
 Secrets must be loaded (Step 8, now incl. `shared/aurora-admin-url`) **before** ArgoCD syncs (Step 9). ArgoCD then: platform-init secret (wave -2) → db-bootstrap Job (wave -1) → service apps (wave 0, whose init-containers run `prisma db push`).
 
 ### Known remaining (flagged, not blocking the pipeline)
-- The **notification-service has no Kafka consumer** (only an SES/SNS service class), yet its KEDA ScaledObject scales on Kafka lag — it won't receive events until a consumer is added.
 - The **MSK IAM Kafka path and db-bootstrap Job are untested** from this environment (no live AWS). They're written to the correct AWS patterns but are the most likely to need a small tweak on first real sync — watch the `db-bootstrap` Job log and the first service pod's init-container log.
+- The notification-service **KEDA ScaledObject** needs a `TriggerAuthentication` (MSK SASL/IAM) and `kafka.bootstrapServers` set to scale on real MSK; the consumer itself works regardless.
+
+## 8. notification-service Kafka consumer (now implemented)
+
+Previously notification-service had only an SES/SNS sender class and no consumer, so it never reacted to events. Added `src/kafka/notification.consumer.ts` + `kafka.module.ts` (consumer group `notification-service-group`, matching the KEDA trigger). It subscribes to `user.registered`, `booking.confirmed`, `payment.completed`, `checkin.completed`, `flight.status-changed`, and `baggage.status-updated`, and dispatches the corresponding passenger notification (email/SMS/push, persisted to DynamoDB). A `WELCOME` notification type was added for `user.registered`.

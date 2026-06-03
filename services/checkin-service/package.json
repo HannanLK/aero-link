@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "start:prod": "node dist/main",
     "start:dev": "nest start --watch",
     "dev": "nest start --watch",
-    "test": "jest",
+    "test": "prisma generate && jest",
     "test:cov": "jest --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy"
@@ -16,6 +16,7 @@
     "@aerolink/common-middleware": "*",
     "@aerolink/events": "*",
     "@aerolink/shared-kernel": "*",
+    "@aws-sdk/client-lambda": "^3.0.0",
     "@nestjs/common": "^11.1.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.1.0",
@@ -53,6 +54,6 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "../jest.env.js"
   }
 }

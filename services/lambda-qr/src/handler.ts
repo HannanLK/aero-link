@@ -30,7 +30,7 @@ async function generateQR(payload: string): Promise<Buffer> {
 
 async function generateBarcode(payload: string): Promise<Buffer> {
   const canvas = createCanvas(400, 150);
-  JsBarcode(canvas as unknown as HTMLCanvasElement, payload, {
+  JsBarcode(canvas as any, payload, {
     format: 'CODE128',
     width: 2,
     height: 100,

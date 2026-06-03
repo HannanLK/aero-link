@@ -108,13 +108,14 @@ export class CheckinService {
     if (this.config.get<string>('LAMBDA_QR_DISABLED') === 'true') {
       return 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     }
-    const { Lambda } = await import('aws-sdk');
-    const lambda = new Lambda({ region: this.config.getOrThrow('AWS_REGION') });
-    const result = await lambda.invoke({
+    const { LambdaClient, InvokeCommand } = await import('@aws-sdk/client-lambda');
+    const lambda = new LambdaClient({ region: this.config.getOrThrow('AWS_REGION') });
+    const result = await lambda.send(new InvokeCommand({
       FunctionName: this.config.getOrThrow('LAMBDA_QR_FUNCTION_NAME'),
-      Payload: JSON.stringify({ body: JSON.stringify({ type: 'boarding-pass', payload }) }),
-    }).promise();
-    const response = JSON.parse(result.Payload as string);
+      Payload: Buffer.from(JSON.stringify({ body: JSON.stringify({ type: 'boarding-pass', payload }) })),
+    }));
+    const text = new TextDecoder().decode(result.Payload);
+    const response = JSON.parse(text);
     const body = JSON.parse(response.body);
     return body.imageBase64 as string;
   }

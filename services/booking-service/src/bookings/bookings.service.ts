@@ -78,7 +78,7 @@ export class BookingsService {
   async cancel(id: string, passengerId: string, correlationId: string) {
     const booking = await this.findOne(id, passengerId);
 
-    if ([BookingStatus.CANCELLED, BookingStatus.COMPENSATING].includes(booking.status)) {
+    if (([BookingStatus.CANCELLED, BookingStatus.COMPENSATING] as BookingStatus[]).includes(booking.status)) {
       return booking;
     }
 

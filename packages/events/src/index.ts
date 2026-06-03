@@ -6,6 +6,7 @@ export * from './checkin';
 export * from './baggage';
 export * from './identity';
 export * from './dlq';
+export * from './builders';
 
 export const TOPICS = {
   BOOKING_CREATED: 'aerolink.booking.created',
