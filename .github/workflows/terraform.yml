@@ -32,6 +32,8 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
+    env:
+      AWS_TERRAFORM_ROLE_ARN: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -42,15 +44,15 @@ jobs:
 
       # Option A: OIDC-based credentials (preferred for production)
       - name: Configure AWS credentials (OIDC)
-        if: ${{ secrets.AWS_TERRAFORM_ROLE_ARN != '' }}
+        if: ${{ env.AWS_TERRAFORM_ROLE_ARN != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_TERRAFORM_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       # Option B: Static access keys (fallback for initial setup)
       - name: Configure AWS credentials (Access Keys)
-        if: ${{ secrets.AWS_TERRAFORM_ROLE_ARN == '' }}
+        if: ${{ env.AWS_TERRAFORM_ROLE_ARN == '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
