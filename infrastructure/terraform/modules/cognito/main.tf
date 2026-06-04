@@ -104,8 +104,21 @@ resource "aws_cognito_user_pool_client" "spa" {
   ]
 }
 
+# Resource server defining the 'internal' scope used by the service client
+resource "aws_cognito_resource_server" "internal" {
+  identifier   = var.prefix
+  name         = "${var.prefix}-internal"
+  user_pool_id = aws_cognito_user_pool.main.id
+
+  scope {
+    scope_name        = "internal"
+    scope_description = "Service-to-service internal access"
+  }
+}
+
 # Service-to-service App Client (client credentials)
 resource "aws_cognito_user_pool_client" "service" {
+  depends_on = [aws_cognito_resource_server.internal]
   name         = "${var.prefix}-service-client"
   user_pool_id = aws_cognito_user_pool.main.id
 

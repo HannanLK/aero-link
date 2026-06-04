@@ -4,12 +4,25 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { TOPICS, buildCheckinCompletedEvent, buildBaggageTagCreatedEvent } from '@aerolink/events';
+import { CircuitBreakerFactory, retryWithBackoff } from '@aerolink/common-middleware';
 import { CheckinDto } from './dto/checkin.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class CheckinService {
   private readonly logger = new Logger(CheckinService.name);
+
+  /**
+   * Circuit breaker for Lambda QR code generation.
+   * - Opens after 5 failures, 30s cooldown
+   * - Fallback: return a text-only boarding pass (check-in still succeeds)
+   */
+  private readonly lambdaQrCircuitBreaker = CircuitBreakerFactory.getOrCreate('lambda-qr', {
+    failureThreshold: 5,
+    cooldownMs: 30_000,
+    timeoutMs: 10_000,
+    successThreshold: 2,
+  });
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,7 +44,7 @@ export class CheckinService {
       issuedAt: new Date().toISOString(),
     });
 
-    // Generate QR via Lambda
+    // Generate QR via Lambda (with circuit breaker + fallback)
     const qrBase64 = await this.generateQR(boardingPassPayload, correlationId);
 
     const checkin = await this.prisma.checkin.upsert({
@@ -108,15 +121,35 @@ export class CheckinService {
     if (this.config.get<string>('LAMBDA_QR_DISABLED') === 'true') {
       return 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     }
-    const { LambdaClient, InvokeCommand } = await import('@aws-sdk/client-lambda');
-    const lambda = new LambdaClient({ region: this.config.getOrThrow('AWS_REGION') });
-    const result = await lambda.send(new InvokeCommand({
-      FunctionName: this.config.getOrThrow('LAMBDA_QR_FUNCTION_NAME'),
-      Payload: Buffer.from(JSON.stringify({ body: JSON.stringify({ type: 'boarding-pass', payload }) })),
-    }));
-    const text = new TextDecoder().decode(result.Payload);
-    const response = JSON.parse(text);
-    const body = JSON.parse(response.body);
-    return body.imageBase64 as string;
+
+    return this.lambdaQrCircuitBreaker.execute(
+      () =>
+        retryWithBackoff(
+          async () => {
+            const { LambdaClient, InvokeCommand } = await import('@aws-sdk/client-lambda');
+            const lambda = new LambdaClient({ region: this.config.getOrThrow('AWS_REGION') });
+            const result = await lambda.send(new InvokeCommand({
+              FunctionName: this.config.getOrThrow('LAMBDA_QR_FUNCTION_NAME'),
+              Payload: Buffer.from(JSON.stringify({ body: JSON.stringify({ type: 'boarding-pass', payload }) })),
+            }));
+            const text = new TextDecoder().decode(result.Payload);
+            const response = JSON.parse(text);
+            const body = JSON.parse(response.body);
+            return body.imageBase64 as string;
+          },
+          { maxRetries: 2, baseDelayMs: 500, operationName: 'lambda-qr-invoke' },
+        ),
+      // Fallback when circuit is OPEN: return a text-based placeholder
+      // Check-in still succeeds — QR can be regenerated later
+      async () => {
+        this.logger.warn('Lambda QR circuit OPEN — using text fallback for boarding pass');
+        return 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      },
+    );
+  }
+
+  /** Expose circuit breaker metrics for the admin health endpoint */
+  getCircuitBreakerMetrics() {
+    return CircuitBreakerFactory.getAllMetrics();
   }
 }

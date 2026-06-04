@@ -22,7 +22,7 @@ resource "aws_iam_role_policy" "lambda_qr_extras" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
     ]
   })
 }

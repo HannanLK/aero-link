@@ -1,6 +1,10 @@
+locals {
+  broker_count = length(var.private_subnet_ids)
+}
+
 resource "aws_security_group" "msk" {
   name        = "${var.prefix}-msk-sg"
-  description = "MSK Kafka — allow TLS from EKS nodes"
+  description = "MSK Kafka - allow TLS from EKS nodes"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -28,13 +32,13 @@ resource "aws_security_group" "msk" {
 }
 
 resource "aws_msk_configuration" "main" {
-  name              = "${var.prefix}-kafka-config"
-  kafka_versions    = [var.kafka_version]
+  name           = "${var.prefix}-kafka-config"
+  kafka_versions = [var.kafka_version]
 
   server_properties = <<-EOF
     auto.create.topics.enable=false
-    default.replication.factor=3
-    min.insync.replicas=2
+    default.replication.factor=${min(local.broker_count, 3)}
+    min.insync.replicas=${local.broker_count > 1 ? 2 : 1}
     num.io.threads=8
     num.network.threads=5
     num.partitions=3
@@ -46,19 +50,19 @@ resource "aws_msk_configuration" "main" {
     unclean.leader.election.enable=false
     log.retention.hours=168
     log.segment.bytes=1073741824
-    log.retention.check.interval.ms=300000
-    offsets.topic.replication.factor=3
+    offsets.topic.replication.factor=${min(local.broker_count, 3)}
   EOF
 }
 
 resource "aws_msk_cluster" "main" {
   cluster_name           = "${var.prefix}-kafka"
   kafka_version          = var.kafka_version
-  number_of_broker_nodes = 3
+  number_of_broker_nodes = local.broker_count
 
   broker_node_group_info {
-    instance_type  = var.broker_instance_type
-    client_subnets = var.private_subnet_ids
+    instance_type   = var.broker_instance_type
+    client_subnets  = var.private_subnet_ids
+    security_groups = [aws_security_group.msk.id]
     storage_info {
       ebs_storage_info {
         volume_size = 100

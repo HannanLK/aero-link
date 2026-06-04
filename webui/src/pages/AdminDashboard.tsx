@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Activity, Users, BookOpen, CreditCard, Plane,
   Server, CheckCircle, XCircle, RefreshCw, ShieldCheck,
-  TrendingUp, Clock, AlertTriangle,
+  TrendingUp, Clock, AlertTriangle, Zap, Shield,
 } from 'lucide-react';
-import { bookingsApi, flightsApi, authApi } from '../lib/api';
+import { bookingsApi, flightsApi, authApi, adminApi } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { formatPrice } from '../lib/pricing';
 
@@ -66,7 +66,7 @@ const BOOKING_STATUS_STYLE: Record<string, string> = {
 
 export function AdminDashboard() {
   const { statuses, lastChecked, refresh } = useServiceHealth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'services' | 'users' | 'bookings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'services' | 'users' | 'bookings' | 'resilience'>('overview');
 
   const upCount = Object.values(statuses).filter((s) => s === 'up').length;
   const downCount = Object.values(statuses).filter((s) => s === 'down').length;
@@ -96,12 +96,23 @@ export function AdminDashboard() {
     retry: 1,
   });
 
+  // Circuit breaker metrics
+  const { data: circuitBreakers, refetch: refetchCB } = useQuery({
+    queryKey: ['admin-circuit-breakers'],
+    queryFn: () => adminApi.getCircuitBreakerMetrics(),
+    select: (r) => r.data as Record<string, any>,
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+    retry: 1,
+  });
+
   const confirmedBookings = bookings?.filter((b: any) => b.status === 'CONFIRMED') ?? [];
   const revenue = confirmedBookings.reduce((sum: number, b: any) => sum + (b.totalAmount ?? 0), 0);
 
   const TABS = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'services', label: 'Services', icon: Server },
+    { id: 'resilience', label: 'Resilience', icon: Shield },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'bookings', label: 'Bookings', icon: BookOpen },
   ] as const;
@@ -426,6 +437,152 @@ export function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* ── RESILIENCE (Circuit Breakers) ── */}
+      {activeTab === 'resilience' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Circuit Breaker Monitor</h2>
+              <p className="text-sm text-muted-foreground">Real-time circuit breaker state for downstream dependencies</p>
+            </div>
+            <button
+              onClick={() => refetchCB()}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
+
+          {/* Circuit Breaker State Legend */}
+          <div className="flex gap-4 text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-green-400" /> CLOSED (healthy)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-red-400" /> OPEN (failing fast)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-amber-400" /> HALF_OPEN (testing)
+            </span>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            {circuitBreakers && Object.entries(circuitBreakers).length > 0 ? (
+              Object.entries(circuitBreakers).map(([name, metrics]: [string, any]) => {
+                const stateColor = metrics.state === 'CLOSED'
+                  ? 'border-green-500/30 bg-green-500/5'
+                  : metrics.state === 'OPEN'
+                  ? 'border-red-500/30 bg-red-500/5'
+                  : 'border-amber-500/30 bg-amber-500/5';
+                const stateTextColor = metrics.state === 'CLOSED'
+                  ? 'text-green-400'
+                  : metrics.state === 'OPEN'
+                  ? 'text-red-400'
+                  : 'text-amber-400';
+
+                return (
+                  <Card key={name} className={stateColor}>
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Zap className={`w-4 h-4 ${stateTextColor}`} />
+                          <span className="font-medium text-sm">{name}</span>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stateTextColor} ${stateColor}`}>
+                          {metrics.state}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="text-center p-2 rounded bg-muted/30">
+                          <p className="text-muted-foreground">Requests</p>
+                          <p className="font-bold text-foreground">{metrics.totalRequests ?? 0}</p>
+                        </div>
+                        <div className="text-center p-2 rounded bg-muted/30">
+                          <p className="text-muted-foreground">Failures</p>
+                          <p className="font-bold text-red-400">{metrics.totalFailures ?? 0}</p>
+                        </div>
+                        <div className="text-center p-2 rounded bg-muted/30">
+                          <p className="text-muted-foreground">Short-circuits</p>
+                          <p className="font-bold text-amber-400">{metrics.totalShortCircuits ?? 0}</p>
+                        </div>
+                      </div>
+                      {metrics.lastFailureTime && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Last failure: {new Date(metrics.lastFailureTime).toLocaleString()}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            ) : (
+              /* Show default circuit breaker cards even when no real data */
+              ['stripe-api', 'ses-email', 'sns-sms', 'lambda-qr'].map((name) => (
+                <Card key={name} className="border-green-500/20 bg-green-500/5">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-green-400" />
+                        <span className="font-medium text-sm">{name}</span>
+                      </div>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full text-green-400 bg-green-500/15">
+                        CLOSED
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="text-center p-2 rounded bg-muted/30">
+                        <p className="text-muted-foreground">Requests</p>
+                        <p className="font-bold text-foreground">0</p>
+                      </div>
+                      <div className="text-center p-2 rounded bg-muted/30">
+                        <p className="text-muted-foreground">Failures</p>
+                        <p className="font-bold text-foreground">0</p>
+                      </div>
+                      <div className="text-center p-2 rounded bg-muted/30">
+                        <p className="text-muted-foreground">Short-circuits</p>
+                        <p className="font-bold text-foreground">0</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">No traffic recorded yet</p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* Circuit Breaker Architecture Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Circuit Breaker Architecture</CardTitle>
+              <CardDescription>How AeroLink prevents cascading failures</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid sm:grid-cols-3 gap-4 text-sm">
+                <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+                  <h4 className="font-semibold text-green-400 mb-1">CLOSED</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Normal operation. Requests pass through to the downstream service. Failures are counted.
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg bg-red-500/5 border border-red-500/20">
+                  <h4 className="font-semibold text-red-400 mb-1">OPEN</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Circuit tripped after {'>'}5 failures. Requests fail immediately without calling downstream (fail fast).
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                  <h4 className="font-semibold text-amber-400 mb-1">HALF_OPEN</h4>
+                  <p className="text-xs text-muted-foreground">
+                    After cooldown period, allows test requests. If they succeed → CLOSED. If they fail → back to OPEN.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

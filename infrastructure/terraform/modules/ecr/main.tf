@@ -33,8 +33,8 @@ resource "aws_ecr_repository" "lambda_qr" {
 
 # Lifecycle policy: keep last 10 tagged images, delete untagged after 1 day
 resource "aws_ecr_lifecycle_policy" "services" {
-  for_each   = aws_ecr_repository.services
-  repository = each.value.name
+  for_each   = toset(var.services)
+  repository = aws_ecr_repository.services[each.key].name
 
   policy = jsonencode({
     rules = [
@@ -68,8 +68,8 @@ resource "aws_ecr_lifecycle_policy" "services" {
 data "aws_caller_identity" "current" {}
 
 resource "aws_ecr_repository_policy" "services" {
-  for_each   = aws_ecr_repository.services
-  repository = each.value.name
+  for_each   = toset(var.services)
+  repository = aws_ecr_repository.services[each.key].name
 
   policy = jsonencode({
     Version = "2012-10-17"

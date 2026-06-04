@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+
+# ── Make Windows-installed CLIs visible to Git Bash (no-op on Linux/macOS) ────
+for _d in \
+  "/c/Program Files/Amazon/AWSCLIV2" \
+  "/c/ProgramData/chocolatey/bin" \
+  "/c/Program Files/Docker/Docker/resources/bin" \
+  "$HOME/AppData/Local/Microsoft/WinGet/Links" ; do
+  if [ -d "$_d" ]; then case ":$PATH:" in *":$_d:"*) ;; *) PATH="$PATH:$_d" ;; esac; fi
+done
+export PATH
 ###############################################################################
 # AeroLink — populate AWS Secrets Manager.
 #

@@ -539,5 +539,26 @@ aero-link/
 | Package | Purpose |
 |---------|---------|
 | `@aerolink/events` | Zod schemas for all 15 Kafka event types — single source of truth |
-| `@aerolink/common-middleware` | `CorrelationIdMiddleware`, `RolesGuard`, `HttpExceptionFilter`, `RequestLoggerInterceptor` |
+| `@aerolink/common-middleware` | `CorrelationIdMiddleware`, `RolesGuard`, `HttpExceptionFilter`, `RequestLoggerInterceptor`, `CircuitBreaker`, `retryWithBackoff`, `initTracing`, `createKafka` |
 | `@aerolink/shared-kernel` | `Money` value object, `PaginatedResult<T>`, shared constants |
+
+---
+
+## Architecture Documentation
+
+| Document | Location | Description |
+|----------|----------|-------------|
+| **High-Level Architecture** | `docs/architecture/high-level-architecture.md` | System overview, AWS infra diagram, service communication matrix, data flow |
+| **Kafka Architecture** | `docs/architecture/kafka-architecture.md` | Topic design, partition strategy, consumer groups, SASL/IAM auth, DLQ |
+| **Circuit Breaker** | `docs/architecture/circuit-breaker.md` | State machine, per-service config, retry policy, cascading failure prevention |
+| **Data Consistency** | `docs/architecture/data-consistency.md` | CAP theorem, Saga choreography, CQRS, eventual consistency, idempotency |
+| **Disaster Recovery** | `docs/architecture/disaster-recovery.md` | Multi-AZ HA, RTO/RPO targets, failure scenarios, auto-scaling, backups |
+| **Security & Compliance** | `docs/architecture/security-compliance.md` | KMS encryption, OAuth 2.0 + Cognito, RBAC, GDPR, PCI DSS |
+| **Booking Saga Sequence** | `docs/architecture/sequence-booking-saga.md` | Detailed booking saga sequence diagram |
+| **Check-in Flow** | `docs/architecture/sequence-checkin-flow.md` | Check-in and boarding pass sequence diagram |
+| **ADRs (1-8)** | `docs/adr/` | 8 Architecture Decision Records |
+| **Swagger Testing** | `docs/testing/swagger-testing-guide.md` | Step-by-step API testing with Swagger UI |
+| **Performance Testing** | `docs/testing/performance-results.md` | Load/stress/spike test results template |
+| **Event Catalogue** | `docs/event-catalogue.md` | All 15 Kafka topics with schemas |
+| **RBAC Matrix** | `docs/rbac-matrix.md` | Permission matrix (9 roles × 6 domains) |
+

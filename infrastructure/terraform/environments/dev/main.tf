@@ -177,6 +177,8 @@ module "api_gateway" {
   source                = "../../modules/api-gateway"
   prefix                = local.prefix
   aws_region            = var.aws_region
+  vpc_id                = module.vpc.vpc_id
+  private_subnet_ids    = module.vpc.private_subnet_ids
   alb_dns_name          = module.eks_addons.alb_dns_name
   cognito_user_pool_arn = module.cognito.user_pool_arn
   cognito_user_pool_id  = module.cognito.user_pool_id
@@ -295,10 +297,6 @@ resource "aws_secretsmanager_secret" "service_secrets" {
   description             = "AeroLink ${each.key} secret"
   kms_key_id              = startswith(each.key, "payment") ? module.kms.cmk_pci_arn : module.kms.cmk_pii_arn
   recovery_window_in_days = 0
-
-  lifecycle {
-    ignore_changes = [secret_string]
-  }
 }
 
 # ─── SSM Parameter Store — non-secret config ─────────────────────────────────
@@ -325,4 +323,14 @@ resource "aws_ssm_parameter" "cognito_app_client_id" {
   name  = "/${var.project}/${var.environment}/shared/cognito-app-client-id"
   type  = "String"
   value = module.cognito.app_client_id
+}
+
+# ─── SES Email Identity Verification ─────────────────────────────────────────
+
+resource "aws_ses_email_identity" "sender" {
+  email = var.notification_email_sender
+}
+
+resource "aws_ses_email_identity" "alert" {
+  email = var.alert_email
 }

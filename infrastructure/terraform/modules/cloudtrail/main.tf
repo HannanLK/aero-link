@@ -14,8 +14,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "trail" {
   bucket = aws_s3_bucket.trail.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = var.cmk_infra_arn
+      sse_algorithm = "AES256"
     }
   }
 }
@@ -72,7 +71,6 @@ resource "aws_s3_bucket_policy" "trail" {
 resource "aws_cloudwatch_log_group" "trail" {
   name              = "/aerolink/cloudtrail"
   retention_in_days = 90
-  kms_key_id        = var.cmk_infra_arn
 }
 
 resource "aws_iam_role" "cloudtrail_cw" {
@@ -107,7 +105,6 @@ resource "aws_cloudtrail" "main" {
   is_multi_region_trail         = true
   include_global_service_events = true
   enable_log_file_validation    = true
-  kms_key_id                    = var.cmk_infra_arn
 
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.trail.arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.cloudtrail_cw.arn

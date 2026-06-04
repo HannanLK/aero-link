@@ -32,16 +32,30 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   }
 }
 
-resource "aws_s3_bucket_ownership_controls" "logs" {
+# Modern AWS accounts have ACLs disabled by default (BucketOwnerEnforced).
+# Use a bucket policy to grant CloudFront logging access instead of ACLs.
+resource "aws_s3_bucket_policy" "logs" {
   bucket = aws_s3_bucket.logs.id
-  rule { object_ownership = "BucketOwnerPreferred" }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontLogs"
+        Effect    = "Allow"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.logs.arn}/cloudfront/*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      }
+    ]
+  })
 }
 
-resource "aws_s3_bucket_acl" "logs" {
-  depends_on = [aws_s3_bucket_ownership_controls.logs]
-  bucket     = aws_s3_bucket.logs.id
-  acl        = "log-delivery-write"
-}
+data "aws_caller_identity" "current" {}
 
 # ─── CloudFront distribution → ALB (webui) ───────────────────────────────────
 
@@ -61,7 +75,7 @@ resource "aws_cloudfront_distribution" "webui" {
     custom_origin_config {
       http_port              = 80
       https_port             = 443
-      origin_protocol_policy = "https-only"
+      origin_protocol_policy = "http-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
@@ -117,6 +131,7 @@ resource "aws_cloudfront_distribution" "webui" {
     error_caching_min_ttl = 0
   }
 
+  # CloudFront logging via bucket policy (no ACLs needed)
   logging_config {
     bucket          = aws_s3_bucket.logs.bucket_domain_name
     prefix          = "cloudfront/"

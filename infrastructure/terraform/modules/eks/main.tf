@@ -154,7 +154,6 @@ resource "aws_launch_template" "nodes" {
       volume_size           = 50
       volume_type           = "gp3"
       encrypted             = true
-      kms_key_id            = var.cmk_infra_arn
       delete_on_termination = true
     }
   }

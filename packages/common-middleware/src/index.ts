@@ -4,3 +4,5 @@ export * from './http-exception.filter';
 export * from './request-logger.interceptor';
 export * from './tracing';
 export * from './kafka-factory';
+export * from './circuit-breaker';
+export * from './retry-policy';

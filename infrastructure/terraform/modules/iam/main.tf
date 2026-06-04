@@ -51,11 +51,11 @@ resource "aws_iam_role_policy" "identity_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/identity-service/*" },
-      { Effect = "Allow"; Action = ["kms:Decrypt", "kms:GenerateDataKey"]; Resource = var.cmk_pii_arn },
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["logs:CreateLogStream", "logs:PutLogEvents"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["cognito-idp:AdminGetUser", "cognito-idp:AdminUpdateUserAttributes"]; Resource = "*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/identity-service/*" },
+      { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
+      { Effect = "Allow", Action = ["cognito-idp:AdminGetUser", "cognito-idp:AdminUpdateUserAttributes"], Resource = "*" },
     ]
   })
 }
@@ -72,11 +72,11 @@ resource "aws_iam_role_policy" "flight_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/flight-service/*" },
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
-      { Effect = "Allow"; Action = ["kms:Decrypt", "kms:GenerateDataKey"]; Resource = var.cmk_pii_arn },
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["logs:CreateLogStream", "logs:PutLogEvents"]; Resource = "*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/flight-service/*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
+      { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
     ]
   })
 }
@@ -93,11 +93,11 @@ resource "aws_iam_role_policy" "booking_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/booking-service/*" },
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
-      { Effect = "Allow"; Action = ["kms:Decrypt", "kms:GenerateDataKey"]; Resource = var.cmk_pii_arn },
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["logs:CreateLogStream", "logs:PutLogEvents"]; Resource = "*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/booking-service/*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
+      { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
     ]
   })
 }
@@ -114,10 +114,10 @@ resource "aws_iam_role_policy" "payment_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/payment-service/*" },
-      { Effect = "Allow"; Action = ["kms:Decrypt", "kms:GenerateDataKey"]; Resource = var.cmk_pci_arn },
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["logs:CreateLogStream", "logs:PutLogEvents"]; Resource = "*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/payment-service/*" },
+      { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pci_arn },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
     ]
   })
 }
@@ -134,12 +134,12 @@ resource "aws_iam_role_policy" "checkin_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/checkin-service/*" },
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
-      { Effect = "Allow"; Action = ["lambda:InvokeFunction"]; Resource = var.lambda_qr_arn },
-      { Effect = "Allow"; Action = ["kms:Decrypt", "kms:GenerateDataKey"]; Resource = var.cmk_pii_arn },
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["logs:CreateLogStream", "logs:PutLogEvents"]; Resource = "*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/checkin-service/*" },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
+      { Effect = "Allow", Action = ["lambda:InvokeFunction"], Resource = var.lambda_qr_arn },
+      { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
     ]
   })
 }
@@ -156,11 +156,11 @@ resource "aws_iam_role_policy" "baggage_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"]; Resource = [var.baggage_table_arn, "${var.baggage_table_arn}/index/*"] },
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
-      { Effect = "Allow"; Action = ["kms:Decrypt", "kms:GenerateDataKey"]; Resource = var.cmk_pii_arn },
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["logs:CreateLogStream", "logs:PutLogEvents"]; Resource = "*" },
+      { Effect = "Allow", Action = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"], Resource = [var.baggage_table_arn, "${var.baggage_table_arn}/index/*"] },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
+      { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
     ]
   })
 }
@@ -177,13 +177,13 @@ resource "aws_iam_role_policy" "notification_service" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["ses:SendEmail", "ses:SendRawEmail"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["sns:Publish"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["dynamodb:PutItem", "dynamodb:Query"]; Resource = [var.notification_table_arn, "${var.notification_table_arn}/index/*"] },
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
-      { Effect = "Allow"; Action = ["kms:Decrypt", "kms:GenerateDataKey"]; Resource = var.cmk_pii_arn },
-      { Effect = "Allow"; Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]; Resource = "*" },
-      { Effect = "Allow"; Action = ["logs:CreateLogStream", "logs:PutLogEvents"]; Resource = "*" },
+      { Effect = "Allow", Action = ["ses:SendEmail", "ses:SendRawEmail"], Resource = "*" },
+      { Effect = "Allow", Action = ["sns:Publish"], Resource = "*" },
+      { Effect = "Allow", Action = ["dynamodb:PutItem", "dynamodb:Query"], Resource = [var.notification_table_arn, "${var.notification_table_arn}/index/*"] },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/dev/shared/*" },
+      { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
+      { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
     ]
   })
 }
@@ -227,8 +227,8 @@ resource "aws_iam_role_policy" "external_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Effect = "Allow"; Action = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]; Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/*" },
-      { Effect = "Allow"; Action = ["kms:Decrypt"]; Resource = [var.cmk_pci_arn, var.cmk_pii_arn, var.cmk_infra_arn] },
+      { Effect = "Allow", Action = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"], Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:/aerolink/*" },
+      { Effect = "Allow", Action = ["kms:Decrypt"], Resource = [var.cmk_pci_arn, var.cmk_pii_arn, var.cmk_infra_arn] },
     ]
   })
 }

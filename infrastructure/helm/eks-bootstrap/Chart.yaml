@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eks-bootstrap
+description: AeroLink EKS bootstrap resources for CRD-backed manifests
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

@@ -6,19 +6,25 @@ resource "aws_wafv2_web_acl" "this" {
   name  = "${var.prefix}-waf"
   scope = var.scope
 
-  default_action { allow {} }
+  default_action {
+    allow {}
+  }
 
   rule {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 10
-    override_action { none {} }
+    override_action {
+      none {}
+    }
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
         rule_action_override {
           name          = "SizeRestrictions_BODY"
-          action_to_use { allow {} }
+          action_to_use {
+            allow {}
+          }
         }
       }
     }
@@ -32,7 +38,9 @@ resource "aws_wafv2_web_acl" "this" {
   rule {
     name     = "AWSManagedRulesSQLiRuleSet"
     priority = 20
-    override_action { none {} }
+    override_action {
+      none {}
+    }
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesSQLiRuleSet"
@@ -49,7 +57,9 @@ resource "aws_wafv2_web_acl" "this" {
   rule {
     name     = "AWSManagedRulesKnownBadInputsRuleSet"
     priority = 30
-    override_action { none {} }
+    override_action {
+      none {}
+    }
     statement {
       managed_rule_group_statement {
         name        = "AWSManagedRulesKnownBadInputsRuleSet"
@@ -66,7 +76,9 @@ resource "aws_wafv2_web_acl" "this" {
   rule {
     name     = "RateLimitPerIP"
     priority = 40
-    action { block {} }
+    action {
+      block {}
+    }
     statement {
       rate_based_statement {
         limit              = 2000

@@ -1,6 +1,6 @@
 resource "aws_security_group" "redis" {
   name        = "${var.prefix}-redis-sg"
-  description = "ElastiCache Redis — allow from EKS nodes only"
+  description = "ElastiCache Redis - allow from EKS nodes only"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -59,13 +59,14 @@ resource "random_password" "redis_auth" {
   special = false  # Redis AUTH token cannot contain commas or spaces
 }
 
-resource "aws_secretsmanager_secret_version" "redis_auth" {
-  secret_id     = "/aerolink/dev/shared/redis-auth-token"
-  secret_string = random_password.redis_auth.result
+resource "aws_secretsmanager_secret" "redis_auth" {
+  name                    = "/aerolink/dev/shared/redis-auth-token"
+  recovery_window_in_days = 0
+}
 
-  lifecycle {
-    ignore_changes = [secret_id]  # Secret resource created in main env module
-  }
+resource "aws_secretsmanager_secret_version" "redis_auth" {
+  secret_id     = aws_secretsmanager_secret.redis_auth.id
+  secret_string = random_password.redis_auth.result
 }
 
 resource "aws_cloudwatch_log_group" "redis" {

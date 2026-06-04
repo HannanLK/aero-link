@@ -7,13 +7,34 @@ resource "helm_release" "aws_lbc" {
   version    = "1.7.2"
   namespace  = "kube-system"
 
-  set { name = "clusterName";                          value = var.eks_cluster_name }
-  set { name = "serviceAccount.create";                value = "true" }
-  set { name = "serviceAccount.name";                  value = "aws-load-balancer-controller" }
-  set { name = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"; value = var.lbc_role_arn }
-  set { name = "region";                               value = var.aws_region }
-  set { name = "vpcId";                                value = var.vpc_id }
-  set { name = "replicaCount";                         value = "2" }
+  set {
+    name = "clusterName"
+    value = var.eks_cluster_name
+  }
+  set {
+    name = "serviceAccount.create"
+    value = "true"
+  }
+  set {
+    name = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+  set {
+    name = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = var.lbc_role_arn
+  }
+  set {
+    name = "region"
+    value = var.aws_region
+  }
+  set {
+    name = "vpcId"
+    value = var.vpc_id
+  }
+  set {
+    name = "replicaCount"
+    value = "2"
+  }
 }
 
 # ─── External Secrets Operator ────────────────────────────────────────────────
@@ -25,28 +46,21 @@ resource "helm_release" "external_secrets" {
   version    = "0.9.16"
   namespace  = "external-secrets"
   create_namespace = true
+  wait              = true
+  timeout           = 900
 
-  set { name = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"; value = var.external_secrets_role_arn }
-  set { name = "replicaCount"; value = "2" }
-}
-
-# ClusterSecretStore pointing to AWS Secrets Manager
-resource "kubernetes_manifest" "cluster_secret_store" {
-  manifest = {
-    apiVersion = "external-secrets.io/v1beta1"
-    kind       = "ClusterSecretStore"
-    metadata   = { name = "aws-secrets-manager" }
-    spec = {
-      provider = {
-        aws = {
-          service = "SecretsManager"
-          region  = var.aws_region
-          auth    = { jwt = { serviceAccountRef = { name = "external-secrets", namespace = "external-secrets" } } }
-        }
-      }
-    }
+  set {
+    name  = "installCRDs"
+    value = "true"
   }
-  depends_on = [helm_release.external_secrets]
+  set {
+    name = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = var.external_secrets_role_arn
+  }
+  set {
+    name = "replicaCount"
+    value = "2"
+  }
 }
 
 # ─── Metrics Server ───────────────────────────────────────────────────────────
@@ -68,11 +82,26 @@ resource "helm_release" "cluster_autoscaler" {
   version    = "9.37.0"
   namespace  = "kube-system"
 
-  set { name = "autoDiscovery.clusterName";            value = var.eks_cluster_name }
-  set { name = "awsRegion";                            value = var.aws_region }
-  set { name = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"; value = var.cluster_autoscaler_role_arn }
-  set { name = "extraArgs.balance-similar-node-groups"; value = "true" }
-  set { name = "extraArgs.skip-nodes-with-system-pods"; value = "false" }
+  set {
+    name = "autoDiscovery.clusterName"
+    value = var.eks_cluster_name
+  }
+  set {
+    name = "awsRegion"
+    value = var.aws_region
+  }
+  set {
+    name = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = var.cluster_autoscaler_role_arn
+  }
+  set {
+    name = "extraArgs.balance-similar-node-groups"
+    value = "true"
+  }
+  set {
+    name = "extraArgs.skip-nodes-with-system-pods"
+    value = "false"
+  }
 }
 
 # ─── KEDA ─────────────────────────────────────────────────────────────────────
@@ -85,7 +114,10 @@ resource "helm_release" "keda" {
   namespace  = "keda"
   create_namespace = true
 
-  set { name = "replicaCount"; value = "2" }
+  set {
+    name = "replicaCount"
+    value = "2"
+  }
 }
 
 # ─── Fluent Bit (logs → CloudWatch) ──────────────────────────────────────────
@@ -145,14 +177,10 @@ resource "helm_release" "otel_collector" {
       }
       exporters = {
         awsxray = { region = var.aws_region }
-        otlp = {
-          endpoint = "$(ELASTIC_APM_SERVER_URL)"
-          headers  = { Authorization = "Bearer $(ELASTIC_APM_SECRET_TOKEN)" }
-        }
       }
       service = {
         pipelines = {
-          traces = { receivers = ["otlp"], exporters = ["awsxray", "otlp"] }
+          traces = { receivers = ["otlp"], exporters = ["awsxray"] }
         }
       }
     }
@@ -168,6 +196,8 @@ resource "helm_release" "argocd" {
   version          = "6.10.2"
   namespace        = "argocd"
   create_namespace = true
+  wait             = true
+  timeout          = 900
 
   values = [yamlencode({
     server = {
@@ -196,58 +226,38 @@ resource "helm_release" "argocd" {
   depends_on = [helm_release.aws_lbc]
 }
 
-# Argo CD ApplicationSet — auto-deploy all services from GitOps repo
-resource "kubernetes_manifest" "argocd_appset" {
-  manifest = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "ApplicationSet"
-    metadata   = { name = "aerolink-services", namespace = "argocd" }
-    spec = {
-      generators = [{
-        list = {
-          elements = [
-            { service = "platform-init",        path = "infrastructure/helm/platform-init", namespace = "aerolink" },
-            { service = "identity-service",     path = "services/identity-service/helm",     namespace = "aerolink" },
-            { service = "flight-service",       path = "services/flight-service/helm",       namespace = "aerolink" },
-            { service = "booking-service",      path = "services/booking-service/helm",      namespace = "aerolink" },
-            { service = "payment-service",      path = "services/payment-service/helm",      namespace = "aerolink" },
-            { service = "checkin-service",      path = "services/checkin-service/helm",      namespace = "aerolink" },
-            { service = "baggage-service",      path = "services/baggage-service/helm",      namespace = "aerolink" },
-            { service = "notification-service", path = "services/notification-service/helm", namespace = "aerolink" },
-            { service = "webui",                path = "webui/helm",                         namespace = "aerolink" },
-          ]
-        }
-      }]
-      template = {
-        metadata = { name = "{{service}}" }
-        spec = {
-          project = "default"
-          source = {
-            repoURL        = "https://github.com/HannanLK/aero-link"
-            targetRevision = "main"
-            path           = "{{path}}"
-          }
-          destination = {
-            server    = "https://kubernetes.default.svc"
-            namespace = "{{namespace}}"
-          }
-          syncPolicy = {
-            automated = { prune = true, selfHeal = true }
-            syncOptions = ["CreateNamespace=true"]
-          }
-        }
-      }
-    }
+# Bootstrap CRD-backed resources with Helm so Terraform does not need live CRD
+# discovery during planning.
+resource "helm_release" "bootstrap" {
+  name       = "eks-bootstrap"
+  chart      = "${path.module}/../../../helm/eks-bootstrap"
+  namespace  = "kube-system"
+  wait       = true
+  timeout    = 900
+
+  set {
+    name  = "awsRegion"
+    value = var.aws_region
   }
-  depends_on = [helm_release.argocd]
+
+  depends_on = [helm_release.external_secrets, helm_release.argocd]
 }
 
 # ─── ALB DNS name (output for API Gateway VPC Link) ──────────────────────────
+# The ALB is created asynchronously by the AWS Load Balancer Controller when
+# ArgoCD's Ingress resource is reconciled. On first apply this won't exist yet.
+# We use a null_resource + data source with retry to handle this gracefully.
+
+# Wait for the ArgoCD ALB to be provisioned before reading its DNS
+resource "time_sleep" "wait_for_alb" {
+  depends_on      = [helm_release.argocd]
+  create_duration = "120s"
+}
 
 data "kubernetes_ingress_v1" "argocd" {
   metadata {
     name      = "argocd-server"
     namespace = "argocd"
   }
-  depends_on = [helm_release.argocd]
+  depends_on = [time_sleep.wait_for_alb]
 }

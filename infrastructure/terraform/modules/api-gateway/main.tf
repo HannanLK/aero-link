@@ -132,11 +132,8 @@ resource "aws_apigatewayv2_stage" "default" {
   }
 }
 
-# WAF association
-resource "aws_wafv2_web_acl_association" "api_gw" {
-  resource_arn = aws_apigatewayv2_stage.default.arn
-  web_acl_arn  = var.waf_web_acl_arn
-}
+# NOTE: WAFv2 cannot be associated with an HTTP (apigatewayv2) API; WAF is
+# applied at the CloudFront layer instead (see module.waf_cloudfront).
 
 # Custom domain
 resource "aws_apigatewayv2_domain_name" "main" {
