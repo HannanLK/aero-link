@@ -2,7 +2,7 @@ FROM public.ecr.aws/lambda/nodejs:22 AS builder
 
 WORKDIR /build
 COPY package*.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --no-audit --no-fund --ignore-scripts
 COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build

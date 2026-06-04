@@ -1,7 +1,9 @@
 # ─── S3 access-log bucket ─────────────────────────────────────────────────────
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_s3_bucket" "logs" {
-  bucket        = "${var.prefix}-access-logs"
+  bucket        = "${var.prefix}-access-logs-${data.aws_caller_identity.current.account_id}"
   force_destroy = true
 }
 
@@ -55,7 +57,7 @@ resource "aws_s3_bucket_policy" "logs" {
   })
 }
 
-data "aws_caller_identity" "current" {}
+
 
 # ─── CloudFront distribution → ALB (webui) ───────────────────────────────────
 

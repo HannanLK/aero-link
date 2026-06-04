@@ -49,8 +49,14 @@ resource "aws_cognito_user_pool" "main" {
   }
 }
 
+resource "random_string" "cognito_domain_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
 resource "aws_cognito_user_pool_domain" "main" {
-  domain       = "${var.prefix}-auth"
+  domain       = "${var.prefix}-auth-${random_string.cognito_domain_suffix.result}"
   user_pool_id = aws_cognito_user_pool.main.id
 }
 
