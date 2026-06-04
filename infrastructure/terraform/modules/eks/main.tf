@@ -176,7 +176,7 @@ resource "aws_eks_node_group" "main" {
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.private_subnet_ids
 
-  capacity_type  = "SPOT"
+  capacity_type  = "ON_DEMAND"
   instance_types = [var.node_instance_type]
 
   scaling_config {
