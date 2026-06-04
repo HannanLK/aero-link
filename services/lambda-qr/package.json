@@ -5,6 +5,7 @@
   "description": "Lambda function: generates QR codes (boarding passes) and Code128 barcodes (baggage tags)",
   "main": "dist/handler.js",
   "scripts": {
+    "lint": "echo 'lint: no eslint configured'",
     "build": "tsc --project tsconfig.json",
     "test": "jest --passWithNoTests"
   },

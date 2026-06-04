@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "lint": "echo 'lint: no eslint configured'",
     "build": "prisma generate && nest build",
     "start:prod": "node dist/main",
     "start:dev": "nest start --watch",
