@@ -12,7 +12,7 @@ COPY tsconfig.base.json ./
 COPY services/notification-service/ ./services/notification-service/
 COPY packages/ ./packages/
 
-# Build shared packages first so their dist/ is available at runtime
+# Build shared packages (generates dist/ for runtime resolution)
 WORKDIR /app/packages/shared-kernel
 RUN npx tsc 2>/dev/null || true
 WORKDIR /app/packages/events
@@ -23,13 +23,26 @@ RUN npx tsc 2>/dev/null || true
 WORKDIR /app/services/notification-service
 RUN npm run build
 
+# --- Production image -------------------------------------------
 FROM node:22-slim
 RUN apt-get update -qq && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/services/notification-service/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
+
+# Copy manifests and compiled packages for workspace resolution
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/services/notification-service/package.json ./services/notification-service/
+
+# Fresh production install - follows lock file exactly, places packages correctly
+RUN npm ci --workspace=services/notification-service --workspace=packages/events \
+           --workspace=packages/common-middleware --workspace=packages/shared-kernel \
+           --omit=dev --ignore-scripts
+
+# Copy compiled service
+COPY --from=builder /app/services/notification-service/dist ./dist
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
