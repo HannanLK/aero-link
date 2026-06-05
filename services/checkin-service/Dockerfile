@@ -28,7 +28,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends openssl && 
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/services/checkin-service/dist ./dist
-COPY --from=builder /app/services/checkin-service/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/services/checkin-service/prisma ./prisma
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma

@@ -28,7 +28,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends openssl && 
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/services/baggage-service/dist ./dist
-COPY --from=builder /app/services/baggage-service/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
