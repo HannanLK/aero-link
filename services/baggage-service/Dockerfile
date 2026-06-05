@@ -16,6 +16,7 @@ WORKDIR /app/services/baggage-service
 RUN npm run build
 
 FROM node:22-alpine
+RUN apk add --no-cache openssl
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/services/baggage-service/dist ./dist
