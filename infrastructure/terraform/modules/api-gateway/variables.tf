@@ -9,11 +9,3 @@ variable "domain_name"            { type = string }
 variable "certificate_arn"        { type = string }
 variable "zone_id"                { type = string }
 variable "cmk_infra_arn"          { type = string }
-variable "vpc_id" {
-  type = string
-  default = ""
-}
-variable "private_subnet_ids" {
-  type = list(string)
-  default = []
-}
