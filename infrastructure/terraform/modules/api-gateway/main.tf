@@ -52,8 +52,7 @@ resource "aws_apigatewayv2_integration" "alb" {
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
   integration_uri    = "http://${var.alb_dns_name}/{proxy}"
-  connection_type    = "VPC_LINK"
-  connection_id      = aws_apigatewayv2_vpc_link.main.id
+  connection_type    = "INTERNET"
 
   request_parameters = {
     "overwrite:header.x-user-id"    = "$context.authorizer.claims.sub"
@@ -177,8 +176,7 @@ resource "aws_apigatewayv2_integration" "ws_alb" {
   integration_type   = "HTTP_PROXY"
   integration_method = "POST"
   integration_uri    = "http://${var.alb_dns_name}/ws"
-  connection_type    = "VPC_LINK"
-  connection_id      = aws_apigatewayv2_vpc_link.main.id
+  connection_type    = "INTERNET"
 }
 
 resource "aws_apigatewayv2_route" "ws_connect" {

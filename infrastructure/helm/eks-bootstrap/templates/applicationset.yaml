@@ -36,20 +36,20 @@ spec:
             namespace: aerolink
   template:
     metadata:
-      name: "{{service}}"
+      name: '{{ `{{service}}` }}'
       namespace: argocd
     spec:
       project: default
       source:
         repoURL: https://github.com/HannanLK/aero-link.git
         targetRevision: main
-        path: "{{path}}"
+        path: '{{ `{{path}}` }}'
         helm:
           valueFiles:
             - values.yaml
       destination:
         server: https://kubernetes.default.svc
-        namespace: "{{namespace}}"
+        namespace: '{{ `{{namespace}}` }}'
       syncPolicy:
         automated:
           prune: true
