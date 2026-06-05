@@ -171,6 +171,9 @@ resource "helm_release" "otel_collector" {
 
   values = [yamlencode({
     mode = "deployment"
+    image = {
+      repository = "otel/opentelemetry-collector-contrib"
+    }
     config = {
       receivers = {
         otlp = { protocols = { grpc = { endpoint = "0.0.0.0:4317" }, http = { endpoint = "0.0.0.0:4318" } } }
