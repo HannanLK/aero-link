@@ -1,47 +1,39 @@
 FROM node:22-slim AS builder
 
 WORKDIR /app
+
+# Copy ALL workspace manifests
 COPY package*.json ./
 COPY packages/ ./packages/
-COPY services/identity-service/package*.json ./services/identity-service/
-RUN npm ci --workspace=services/identity-service --workspace=packages/events \
-           --workspace=packages/common-middleware --workspace=packages/shared-kernel \
-           --ignore-scripts
+COPY services/identity-service/ ./services/identity-service/
+
+# Full install - all workspaces, all deps
+RUN npm ci --ignore-scripts
 
 COPY tsconfig.base.json ./
-COPY services/identity-service/ ./services/identity-service/
-COPY packages/ ./packages/
 
-# Build shared packages (generates dist/ for runtime resolution)
-WORKDIR /app/packages/shared-kernel
-RUN npx tsc 2>/dev/null || true
-WORKDIR /app/packages/events
-RUN npx tsc 2>/dev/null || true
-WORKDIR /app/packages/common-middleware
-RUN npx tsc 2>/dev/null || true
+# Build shared packages
+RUN cd packages/shared-kernel && npx tsc 2>/dev/null || true
+RUN cd packages/events && npx tsc 2>/dev/null || true
+RUN cd packages/common-middleware && npx tsc 2>/dev/null || true
 
+# Build the service
 WORKDIR /app/services/identity-service
 RUN npx prisma generate && npm run build
 
-# --- Production image -------------------------------------------
+# Prune devDependencies from node_modules
+WORKDIR /app
+RUN npm prune --omit=dev 2>/dev/null || true
+
+# --- Production image ---
 FROM node:22-slim
 RUN apt-get update -qq && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy manifests and compiled packages for workspace resolution
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/services/identity-service/package.json ./services/identity-service/
-
-# Fresh production install - follows lock file exactly, places packages correctly
-RUN npm ci --workspace=services/identity-service --workspace=packages/events \
-           --workspace=packages/common-middleware --workspace=packages/shared-kernel \
-           --omit=dev --ignore-scripts
-
-# Copy compiled service
 COPY --from=builder /app/services/identity-service/dist ./dist
 COPY --from=builder /app/services/identity-service/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma

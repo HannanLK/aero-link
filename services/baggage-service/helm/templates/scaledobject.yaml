@@ -1,3 +1,4 @@
+{{- if .Values.kafka }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -17,3 +18,4 @@ spec:
         topic: "aerolink.baggage.tag-created"
         lagThreshold: "50"
         offsetResetPolicy: latest
+{{- end }}

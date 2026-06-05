@@ -37,7 +37,6 @@ spec:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
       topologySpreadConstraints:
