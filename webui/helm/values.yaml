@@ -22,7 +22,7 @@ ingress:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:432004895948:certificate/de6bd55b-79f6-4cc0-983a-d63038acbd25"
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # alb.ingress.kubernetes.io/ssl-redirect: "443"
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
   hosts:
     - host: ""        # e.g. aerolink.app — set in env overlay
