@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/webui"
@@ -76,7 +76,7 @@ resources:
 
 autoscaling:
   enabled: true
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
 

@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/flight-service"
@@ -41,7 +41,7 @@ podDisruptionBudget:
 
 autoscaling:
   enabled: true
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 8
   targetCPUUtilizationPercentage: 70
 
