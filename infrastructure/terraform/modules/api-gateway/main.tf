@@ -34,8 +34,12 @@ resource "aws_apigatewayv2_integration" "alb" {
   api_id             = aws_apigatewayv2_api.http.id
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
-  integration_uri    = "https://${var.alb_dns_name}"
+  integration_uri    = "http://${var.alb_dns_name}"
   connection_type    = "INTERNET"
+
+  request_parameters = {
+    "overwrite:path" = "$request.path"
+  }
 
   # NOTE: For HTTP_PROXY with INTERNET, the full request path is forwarded automatically.
   # Do NOT use {proxy} in the URI — it requires all routes to have a matching path variable.
