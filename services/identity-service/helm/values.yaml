@@ -29,7 +29,7 @@ serviceAccount:
   annotations: {}  # eks.amazonaws.com/role-arn set by Terraform outputs
 
 migrations:
-  enabled: true   # Prisma db push init-container
+  enabled: false
 
 env:
   - name: NODE_ENV

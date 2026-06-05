@@ -29,7 +29,7 @@ serviceAccount:
   annotations: {}
 
 migrations:
-  enabled: true   # Prisma db push init-container
+  enabled: false
 
 env:
   - name: NODE_ENV

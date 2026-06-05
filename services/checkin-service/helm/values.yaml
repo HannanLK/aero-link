@@ -46,7 +46,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 migrations:
-  enabled: true
+  enabled: false
 
 env:
   - name: NODE_ENV
