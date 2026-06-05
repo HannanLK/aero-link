@@ -29,6 +29,42 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+        - path: /api/v1/auth
+          pathType: Prefix
+          backendService: identity-service
+          backendPort: 3000
+        - path: /api/v1/users
+          pathType: Prefix
+          backendService: identity-service
+          backendPort: 3000
+        - path: /api/v1/flights
+          pathType: Prefix
+          backendService: flight-service
+          backendPort: 3000
+        - path: /api/v1/bookings
+          pathType: Prefix
+          backendService: booking-service
+          backendPort: 3000
+        - path: /api/v1/payments
+          pathType: Prefix
+          backendService: payment-service
+          backendPort: 3000
+        - path: /api/v1/checkin
+          pathType: Prefix
+          backendService: checkin-service
+          backendPort: 3000
+        - path: /api/v1/baggage
+          pathType: Prefix
+          backendService: baggage-service
+          backendPort: 3000
+        - path: /api/v1/notifications
+          pathType: Prefix
+          backendService: notification-service
+          backendPort: 3000
+        - path: /api/v1/health
+          pathType: Prefix
+          backendService: identity-service
+          backendPort: 3000
 
 resources:
   requests:

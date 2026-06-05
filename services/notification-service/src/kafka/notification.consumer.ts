@@ -1,6 +1,6 @@
 import { Injectable, Inject, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
-import { Consumer } from 'kafkajs';
-import { createKafka } from '@aerolink/common-middleware';
+import { Kafka, Consumer } from 'kafkajs';
+import { createKafka, ensureTopics } from '@aerolink/common-middleware';
 import { TOPICS } from '@aerolink/events';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -13,26 +13,29 @@ import { NotificationsService } from '../notifications/notifications.service';
 export class NotificationConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NotificationConsumer.name);
   private consumer: Consumer;
+  private kafkaInstance: Kafka;
 
   constructor(
     @Inject('KAFKA_CONFIG') private readonly config: { brokers: string[]; clientId: string; groupId: string },
     private readonly notifications: NotificationsService,
   ) {
-    const kafka = createKafka({ clientId: this.config.clientId, brokers: this.config.brokers });
-    this.consumer = kafka.consumer({ groupId: this.config.groupId });
+    this.kafkaInstance = createKafka({ clientId: this.config.clientId, brokers: this.config.brokers });
+    this.consumer = this.kafkaInstance.consumer({ groupId: this.config.groupId });
   }
 
   async onModuleInit() {
+    const topics = [
+      TOPICS.USER_REGISTERED,
+      TOPICS.BOOKING_CONFIRMED,
+      TOPICS.PAYMENT_COMPLETED,
+      TOPICS.CHECKIN_COMPLETED,
+      TOPICS.FLIGHT_STATUS_CHANGED,
+      TOPICS.BAGGAGE_STATUS_UPDATED,
+    ];
+    await ensureTopics(this.kafkaInstance, topics);
     await this.consumer.connect();
     await this.consumer.subscribe({
-      topics: [
-        TOPICS.USER_REGISTERED,
-        TOPICS.BOOKING_CONFIRMED,
-        TOPICS.PAYMENT_COMPLETED,
-        TOPICS.CHECKIN_COMPLETED,
-        TOPICS.FLIGHT_STATUS_CHANGED,
-        TOPICS.BAGGAGE_STATUS_UPDATED,
-      ],
+      topics,
       fromBeginning: false,
     });
 

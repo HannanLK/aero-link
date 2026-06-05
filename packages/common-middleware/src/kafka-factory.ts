@@ -52,12 +52,13 @@ export async function ensureTopics(
   try {
     await admin.connect();
     const existing = new Set(await admin.listTopics());
+    const defaultReplication = process.env.KAFKA_AUTH === 'iam' ? 2 : 1;
     const toCreate: ITopicConfig[] = topics
       .filter((t) => !existing.has(t))
       .map((topic) => ({
         topic,
         numPartitions: opts.numPartitions ?? 3,
-        replicationFactor: opts.replicationFactor ?? 3,
+        replicationFactor: opts.replicationFactor ?? defaultReplication,
       }));
     if (toCreate.length > 0) {
       await admin.createTopics({ topics: toCreate, waitForLeaders: true });

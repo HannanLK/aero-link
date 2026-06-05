@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+dist
+**/dist
+build
+**/build
+.turbo
+**/.turbo
+.git
+.github
+.idea
+.vscode
+.env
+.env.*
+*.log
+node_modules/.prisma
+**/node_modules/.prisma

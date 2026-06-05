@@ -142,6 +142,7 @@ resource "aws_iam_role_policy" "identity_service" {
       { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
       { Effect = "Allow", Action = ["cognito-idp:AdminGetUser", "cognito-idp:AdminUpdateUserAttributes"], Resource = "*" },
+      { Effect = "Allow", Action = ["kafka-cluster:*"], Resource = "*" },
     ]
   })
 }
@@ -163,6 +164,7 @@ resource "aws_iam_role_policy" "flight_service" {
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
       { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
+      { Effect = "Allow", Action = ["kafka-cluster:*"], Resource = "*" },
     ]
   })
 }
@@ -184,6 +186,7 @@ resource "aws_iam_role_policy" "booking_service" {
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
       { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
+      { Effect = "Allow", Action = ["kafka-cluster:*"], Resource = "*" },
     ]
   })
 }
@@ -204,6 +207,7 @@ resource "aws_iam_role_policy" "payment_service" {
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pci_arn },
       { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
+      { Effect = "Allow", Action = ["kafka-cluster:*"], Resource = "*" },
     ]
   })
 }
@@ -226,6 +230,7 @@ resource "aws_iam_role_policy" "checkin_service" {
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
       { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
+      { Effect = "Allow", Action = ["kafka-cluster:*"], Resource = "*" },
     ]
   })
 }
@@ -247,6 +252,7 @@ resource "aws_iam_role_policy" "baggage_service" {
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
       { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
+      { Effect = "Allow", Action = ["kafka-cluster:*"], Resource = "*" },
     ]
   })
 }
@@ -270,6 +276,7 @@ resource "aws_iam_role_policy" "notification_service" {
       { Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey"], Resource = var.cmk_pii_arn },
       { Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "*" },
+      { Effect = "Allow", Action = ["kafka-cluster:*"], Resource = "*" },
     ]
   })
 }

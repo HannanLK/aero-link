@@ -34,7 +34,7 @@ resource "aws_apigatewayv2_integration" "alb" {
   api_id             = aws_apigatewayv2_api.http.id
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
-  integration_uri    = "http://${var.alb_dns_name}"
+  integration_uri    = "https://${var.alb_dns_name}"
   connection_type    = "INTERNET"
 
   # NOTE: For HTTP_PROXY with INTERNET, the full request path is forwarded automatically.
@@ -44,13 +44,13 @@ resource "aws_apigatewayv2_integration" "alb" {
 # Routes — protected (JWT required)
 locals {
   protected_routes = [
-    "ANY /flights/{proxy+}",
-    "ANY /bookings/{proxy+}",
-    "ANY /payments/{proxy+}",
-    "ANY /checkin/{proxy+}",
-    "ANY /baggage/{proxy+}",
-    "ANY /notifications/{proxy+}",
-    "ANY /users/{proxy+}",
+    "ANY /api/v1/flights/{proxy+}",
+    "ANY /api/v1/bookings/{proxy+}",
+    "ANY /api/v1/payments/{proxy+}",
+    "ANY /api/v1/checkin/{proxy+}",
+    "ANY /api/v1/baggage/{proxy+}",
+    "ANY /api/v1/notifications/{proxy+}",
+    "ANY /api/v1/users/{proxy+}",
   ]
 }
 
@@ -67,13 +67,13 @@ resource "aws_apigatewayv2_route" "protected" {
 # Public routes (no auth — login/register)
 resource "aws_apigatewayv2_route" "public_auth" {
   api_id    = aws_apigatewayv2_api.http.id
-  route_key = "ANY /auth/{proxy+}"
+  route_key = "ANY /api/v1/auth/{proxy+}"
   target    = "integrations/${aws_apigatewayv2_integration.alb.id}"
 }
 
 resource "aws_apigatewayv2_route" "health" {
   api_id    = aws_apigatewayv2_api.http.id
-  route_key = "GET /health"
+  route_key = "ANY /api/v1/health/{proxy+}"
   target    = "integrations/${aws_apigatewayv2_integration.alb.id}"
 }
 

@@ -1,6 +1,6 @@
 import { Injectable, Inject, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
-import { createKafka } from '@aerolink/common-middleware';
+import { createKafka, ensureTopics } from '@aerolink/common-middleware';
 import { BookingStatus } from '@prisma/client';
 import {
   TOPICS,
@@ -15,24 +15,27 @@ import { BookingsService } from '../bookings/bookings.service';
 export class SagaConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SagaConsumer.name);
   private consumer: Consumer;
+  private kafkaInstance: Kafka;
 
   constructor(
     @Inject('KAFKA_CONFIG') private readonly config: { brokers: string[]; clientId: string; groupId: string },
     private readonly bookingsService: BookingsService,
   ) {
-    const kafka = createKafka({ clientId: this.config.clientId, brokers: this.config.brokers });
-    this.consumer = kafka.consumer({ groupId: this.config.groupId });
+    this.kafkaInstance = createKafka({ clientId: this.config.clientId, brokers: this.config.brokers });
+    this.consumer = this.kafkaInstance.consumer({ groupId: this.config.groupId });
   }
 
   async onModuleInit() {
+    const topics = [
+      TOPICS.SEAT_LOCK_CONFIRMED,
+      TOPICS.SEAT_LOCK_FAILED,
+      TOPICS.PAYMENT_COMPLETED,
+      TOPICS.PAYMENT_FAILED,
+    ];
+    await ensureTopics(this.kafkaInstance, topics);
     await this.consumer.connect();
     await this.consumer.subscribe({
-      topics: [
-        TOPICS.SEAT_LOCK_CONFIRMED,
-        TOPICS.SEAT_LOCK_FAILED,
-        TOPICS.PAYMENT_COMPLETED,
-        TOPICS.PAYMENT_FAILED,
-      ],
+      topics,
       fromBeginning: false,
     });
 

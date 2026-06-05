@@ -19,9 +19,9 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "webui.fullname" $ }}
+                name: {{ .backendService | default (include "webui.fullname" $) }}
                 port:
-                  number: {{ $.Values.service.port }}
+                  number: {{ .backendPort | default $.Values.service.port }}
           {{- end }}
     {{- end }}
 {{- end }}
