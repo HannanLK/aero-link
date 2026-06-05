@@ -23,6 +23,7 @@ RUN npx prisma generate && npm run build
 
 # Prune devDependencies from node_modules
 WORKDIR /app
+RUN npm prune --omit=dev --ignore-scripts
 
 # --- Production image ---
 FROM node:22-slim

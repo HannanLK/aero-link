@@ -37,7 +37,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       );
     }
 
-    response.status(status).json({
+    response.status(status).send({
       statusCode: status,
       message: Array.isArray(message) ? message : [message],
       correlationId,
