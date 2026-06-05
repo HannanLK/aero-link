@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: ""  # set by CI: <account>.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/notification-service
+  repository: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/notification-service"
   tag: "latest"
   pullPolicy: IfNotPresent
 

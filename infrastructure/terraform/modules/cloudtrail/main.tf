@@ -32,7 +32,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "trail" {
   rule {
     id     = "archive"
     status = "Enabled"
-    filter {}
+    filter {
+      prefix = ""
+    }
     transition {
       days          = 90
       storage_class = "GLACIER"

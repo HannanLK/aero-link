@@ -2,7 +2,7 @@ locals {
   oidc_issuer_clean = replace(var.eks_oidc_issuer, "https://", "")
 }
 
-# ─── Helper: IRSA trust policy ────────────────────────────────────────────────
+# ─── Helper: IRSA trust policy for APPLICATION services (namespace: aerolink) ─
 
 data "aws_iam_policy_document" "irsa_trust" {
   for_each = toset([
@@ -13,10 +13,6 @@ data "aws_iam_policy_document" "irsa_trust" {
     "checkin-service",
     "baggage-service",
     "notification-service",
-    "aws-load-balancer-controller",
-    "cluster-autoscaler",
-    "external-secrets",
-    "fluent-bit",
   ])
 
   statement {
@@ -30,6 +26,96 @@ data "aws_iam_policy_document" "irsa_trust" {
       test     = "StringEquals"
       variable = "${local.oidc_issuer_clean}:sub"
       values   = ["system:serviceaccount:aerolink:${each.key}"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+# ─── Helper: IRSA trust for PLATFORM add-ons (correct per-namespace) ──────────
+
+# aws-load-balancer-controller → kube-system namespace
+data "aws_iam_policy_document" "irsa_lbc" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [var.eks_oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+# cluster-autoscaler → kube-system namespace
+data "aws_iam_policy_document" "irsa_cluster_autoscaler" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [var.eks_oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:sub"
+      values   = ["system:serviceaccount:kube-system:cluster-autoscaler"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+# external-secrets → external-secrets namespace
+data "aws_iam_policy_document" "irsa_external_secrets" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [var.eks_oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:sub"
+      values   = ["system:serviceaccount:external-secrets:external-secrets"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+# fluent-bit → logging namespace
+data "aws_iam_policy_document" "irsa_fluent_bit" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [var.eks_oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_clean}:sub"
+      values   = ["system:serviceaccount:logging:fluent-bit"]
     }
     condition {
       test     = "StringEquals"
@@ -192,17 +278,17 @@ resource "aws_iam_role_policy" "notification_service" {
 
 resource "aws_iam_role" "lbc" {
   name               = "${var.prefix}-lbc-role"
-  assume_role_policy = data.aws_iam_policy_document.irsa_trust["aws-load-balancer-controller"].json
+  assume_role_policy = data.aws_iam_policy_document.irsa_lbc.json
 }
 
 resource "aws_iam_role_policy_attachment" "lbc" {
   role       = aws_iam_role.lbc.name
-  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
+  policy_arn = "arn:aws:iam::${var.aws_account_id}:policy/AWSLoadBalancerControllerIAMPolicy"
 }
 
 resource "aws_iam_role" "cluster_autoscaler" {
   name               = "${var.prefix}-cluster-autoscaler-role"
-  assume_role_policy = data.aws_iam_policy_document.irsa_trust["cluster-autoscaler"].json
+  assume_role_policy = data.aws_iam_policy_document.irsa_cluster_autoscaler.json
 }
 
 resource "aws_iam_role_policy" "cluster_autoscaler" {
@@ -219,7 +305,7 @@ resource "aws_iam_role_policy" "cluster_autoscaler" {
 
 resource "aws_iam_role" "external_secrets" {
   name               = "${var.prefix}-external-secrets-role"
-  assume_role_policy = data.aws_iam_policy_document.irsa_trust["external-secrets"].json
+  assume_role_policy = data.aws_iam_policy_document.irsa_external_secrets.json
 }
 
 resource "aws_iam_role_policy" "external_secrets" {
@@ -235,7 +321,7 @@ resource "aws_iam_role_policy" "external_secrets" {
 
 resource "aws_iam_role" "fluent_bit" {
   name               = "${var.prefix}-fluent-bit-role"
-  assume_role_policy = data.aws_iam_policy_document.irsa_trust["fluent-bit"].json
+  assume_role_policy = data.aws_iam_policy_document.irsa_fluent_bit.json
 }
 
 resource "aws_iam_role_policy_attachment" "fluent_bit" {

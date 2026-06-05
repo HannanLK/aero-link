@@ -13,8 +13,15 @@ locals {
     "webui",
   ]
 
-  # Fallback to a dummy domain name at plan time if EKS/ArgoCD is not active yet (chicken-and-egg bootstrap issue)
-  alb_dns_name = module.eks_addons.alb_dns_name == "" ? "dummy-alb.us-east-1.elb.amazonaws.com" : module.eks_addons.alb_dns_name
+  # ALB DNS name resolution (3-tier fallback):
+  # 1. alb_dns_name_override tfvar (set after first apply once LBC creates ALB)
+  # 2. Module output from eks_addons (populated after bootstrap helm deploys ArgoCD)
+  # 3. Dummy placeholder (safe for first apply — API GW created but routes won't work yet)
+  alb_dns_name = (
+    var.alb_dns_name_override != "" ? var.alb_dns_name_override :
+    module.eks_addons.alb_dns_name != "" ? module.eks_addons.alb_dns_name :
+    "dummy-alb.us-east-1.elb.amazonaws.com"
+  )
 }
 
 data "aws_caller_identity" "current" {}
@@ -180,8 +187,6 @@ module "api_gateway" {
   source                = "../../modules/api-gateway"
   prefix                = local.prefix
   aws_region            = var.aws_region
-  vpc_id                = module.vpc.vpc_id
-  private_subnet_ids    = module.vpc.private_subnet_ids
   alb_dns_name          = local.alb_dns_name
   cognito_user_pool_arn = module.cognito.user_pool_arn
   cognito_user_pool_id  = module.cognito.user_pool_id

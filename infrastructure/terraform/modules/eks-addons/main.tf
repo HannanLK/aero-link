@@ -246,21 +246,15 @@ resource "helm_release" "bootstrap" {
   depends_on = [helm_release.external_secrets, helm_release.argocd]
 }
 
-# ─── ALB DNS name (output for API Gateway VPC Link) ──────────────────────────
+# ─── ALB DNS name (output for API Gateway) ───────────────────────────────────
 # The ALB is created asynchronously by the AWS Load Balancer Controller when
-# ArgoCD's Ingress resource is reconciled. On first apply this won't exist yet.
-# We use a null_resource + data source with retry to handle this gracefully.
+# ArgoCD's Ingress resource is reconciled.
+# - On first apply: ALB doesn't exist yet → output is "" → API GW uses dummy fallback
+# - On second apply: LBC has provisioned the ALB → re-run to get real hostname
+# Use: kubectl get ingress argocd-server -n argocd to check ALB status
 
-# Wait for the ArgoCD ALB to be provisioned before reading its DNS
 resource "time_sleep" "wait_for_alb" {
   depends_on      = [helm_release.argocd]
   create_duration = "120s"
 }
 
-data "kubernetes_ingress_v1" "argocd" {
-  metadata {
-    name      = "argocd-server"
-    namespace = "argocd"
-  }
-  depends_on = [time_sleep.wait_for_alb]
-}

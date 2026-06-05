@@ -26,39 +26,19 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   }
 }
 
-# VPC Link to ALB (private integration)
-resource "aws_apigatewayv2_vpc_link" "main" {
-  name               = "${var.prefix}-vpc-link"
-  security_group_ids = [aws_security_group.api_gw.id]
-  subnet_ids         = var.private_subnet_ids
-}
-
-resource "aws_security_group" "api_gw" {
-  name        = "${var.prefix}-apigw-sg"
-  description = "API Gateway VPC Link security group"
-  vpc_id      = var.vpc_id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# ALB Integration
+# ─── ALB Integration (INTERNET — ALB is public-facing) ───────────────────────
+# NOTE: VPC Link requires an ELB listener ARN as integration_uri, which is not
+# available until the ALB is created by the LBC controller (chicken-and-egg).
+# We use INTERNET connection type since the ALB is internet-facing (public subnets).
 resource "aws_apigatewayv2_integration" "alb" {
   api_id             = aws_apigatewayv2_api.http.id
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
-  integration_uri    = "http://${var.alb_dns_name}/{proxy}"
+  integration_uri    = "http://${var.alb_dns_name}"
   connection_type    = "INTERNET"
 
-  request_parameters = {
-    "overwrite:header.x-user-id"    = "$context.authorizer.claims.sub"
-    "overwrite:header.x-user-roles" = "$context.authorizer.claims['custom:roles']"
-    "overwrite:header.x-correlation-id" = "$context.requestId"
-  }
+  # NOTE: For HTTP_PROXY with INTERNET, the full request path is forwarded automatically.
+  # Do NOT use {proxy} in the URI — it requires all routes to have a matching path variable.
 }
 
 # Routes — protected (JWT required)

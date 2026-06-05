@@ -91,3 +91,9 @@ variable "db_master_password" {
   type        = string
   sensitive   = true
 }
+
+variable "alb_dns_name_override" {
+  description = "Real ALB DNS name from the AWS Load Balancer Controller. Leave empty on first apply; set after ALB is provisioned."
+  type        = string
+  default     = ""
+}

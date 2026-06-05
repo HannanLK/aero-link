@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: ""      # set via CI: <account>.dkr.ecr.<region>.amazonaws.com/aerolink/webui
+  repository: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/webui"
   tag: "latest"
   pullPolicy: IfNotPresent
 

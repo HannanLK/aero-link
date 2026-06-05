@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: ""
+  repository: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/booking-service"
   tag: "latest"
   pullPolicy: IfNotPresent
 
