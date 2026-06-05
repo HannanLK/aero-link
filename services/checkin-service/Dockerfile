@@ -33,8 +33,9 @@ ENV NODE_ENV=production
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/services/checkin-service/dist ./dist
-COPY --from=builder /app/services/checkin-service/prisma ./prisma
+COPY --from=builder /app/services/checkin-service/node_modules ./services/checkin-service/node_modules
+COPY --from=builder /app/services/checkin-service/dist ./services/checkin-service/dist
+COPY --from=builder /app/services/checkin-service/prisma ./services/checkin-service/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
@@ -42,4 +43,5 @@ USER appuser
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s \
   CMD node -e "require('http').get('http://localhost:3000/api/v1/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+WORKDIR /app/services/checkin-service
 CMD ["node", "dist/main"]
