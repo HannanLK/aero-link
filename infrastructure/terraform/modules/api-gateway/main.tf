@@ -56,7 +56,7 @@ resource "aws_apigatewayv2_integration" "alb" {
 
   request_parameters = {
     "overwrite:header.x-user-id"    = "$context.authorizer.claims.sub"
-    "overwrite:header.x-user-roles" = "$context.authorizer.claims.custom:roles"
+    "overwrite:header.x-user-roles" = "$context.authorizer.claims['custom:roles']"
     "overwrite:header.x-correlation-id" = "$context.requestId"
   }
 }
