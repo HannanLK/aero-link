@@ -21,15 +21,7 @@ spec:
       {{- if and .Values.migrations .Values.migrations.enabled }}
       # Apply the Prisma schema to the database before the app starts.
       # No migration files exist in the repo, so we use `db push` (idempotent).
-      initContainers:
-        - name: prisma-db-push
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["sh", "-c", "npx prisma@5 db push --schema=./prisma/schema.prisma --skip-generate --accept-data-loss"]
-          envFrom:
-            - secretRef:
-                name: {{ .Release.Name }}-secrets
-      {{- end }}
+
       containers:
         - name: {{ .Release.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

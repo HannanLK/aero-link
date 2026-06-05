@@ -3,7 +3,7 @@ replicaCount: 2
 image:
   repository: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/webui"
   tag: "latest"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 serviceAccount:
   annotations: {}     # IRSA not needed for static webui
@@ -20,7 +20,7 @@ ingress:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/certificate-arn: ""   # set in env overlay
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:432004895948:certificate/de6bd55b-79f6-4cc0-983a-d63038acbd25"
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
@@ -57,4 +57,4 @@ topologySpreadConstraints:
         app.kubernetes.io/name: webui
 
 env:
-  VITE_API_BASE_URL: "https://api.aerolink.app/api/v1"
+  VITE_API_BASE_URL: "https://api.transnova.online/api/v1"
