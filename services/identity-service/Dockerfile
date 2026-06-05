@@ -29,6 +29,7 @@ ENV NODE_ENV=production
 COPY --from=builder /app/services/identity-service/dist ./dist
 COPY --from=builder /app/services/identity-service/node_modules ./node_modules
 COPY --from=builder /app/services/identity-service/prisma ./prisma
+COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
