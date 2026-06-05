@@ -14,6 +14,14 @@ COPY tsconfig.base.json ./
 COPY services/identity-service/ ./services/identity-service/
 COPY packages/ ./packages/
 
+
+# Build shared packages so their dist/ exists at runtime
+WORKDIR /app/packages/shared-kernel
+RUN npx tsc 2>/dev/null || true
+WORKDIR /app/packages/events
+RUN npx tsc 2>/dev/null || true
+WORKDIR /app/packages/common-middleware
+RUN npx tsc 2>/dev/null || true
 WORKDIR /app/services/identity-service
 RUN npx prisma generate
 RUN npm run build

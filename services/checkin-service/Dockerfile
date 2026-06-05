@@ -12,6 +12,14 @@ COPY tsconfig.base.json ./
 COPY services/checkin-service/ ./services/checkin-service/
 COPY packages/ ./packages/
 
+
+# Build shared packages so their dist/ exists at runtime
+WORKDIR /app/packages/shared-kernel
+RUN npx tsc 2>/dev/null || true
+WORKDIR /app/packages/events
+RUN npx tsc 2>/dev/null || true
+WORKDIR /app/packages/common-middleware
+RUN npx tsc 2>/dev/null || true
 WORKDIR /app/services/checkin-service
 RUN npx prisma generate && npm run build
 

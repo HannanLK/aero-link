@@ -12,6 +12,14 @@ COPY tsconfig.base.json ./
 COPY services/notification-service/ ./services/notification-service/
 COPY packages/ ./packages/
 
+# Build shared packages first so their dist/ is available at runtime
+WORKDIR /app/packages/shared-kernel
+RUN npx tsc 2>/dev/null || true
+WORKDIR /app/packages/events
+RUN npx tsc 2>/dev/null || true
+WORKDIR /app/packages/common-middleware
+RUN npx tsc 2>/dev/null || true
+
 WORKDIR /app/services/notification-service
 RUN npm run build
 
@@ -21,6 +29,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/services/notification-service/dist ./dist
 COPY --from=builder /app/services/notification-service/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
