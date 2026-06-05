@@ -22,7 +22,7 @@ ENV NODE_ENV=production
 COPY --from=builder /app/services/notification-service/dist ./dist
 COPY --from=builder /app/services/notification-service/node_modules ./node_modules
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s \

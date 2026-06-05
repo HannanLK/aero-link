@@ -31,7 +31,7 @@ COPY --from=builder /app/services/identity-service/node_modules ./node_modules
 COPY --from=builder /app/services/identity-service/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 
 EXPOSE 3000
