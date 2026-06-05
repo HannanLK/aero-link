@@ -18,10 +18,6 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
-      {{- if and .Values.migrations .Values.migrations.enabled }}
-      # Apply the Prisma schema to the database before the app starts.
-      # No migration files exist in the repo, so we use `db push` (idempotent).
-
       containers:
         - name: {{ .Release.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
