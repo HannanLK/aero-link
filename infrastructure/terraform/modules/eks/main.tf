@@ -114,7 +114,7 @@ resource "aws_eks_cluster" "main" {
     subnet_ids              = var.private_subnet_ids
     security_group_ids      = [aws_security_group.cluster.id]
     endpoint_private_access = true
-    endpoint_public_access  = true  # Required for initial setup; restrict after bootstrap
+    endpoint_public_access  = true # Required for initial setup; restrict after bootstrap
   }
 
   encryption_config {
@@ -160,7 +160,7 @@ resource "aws_launch_template" "nodes" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required"  # IMDSv2 only
+    http_tokens                 = "required" # IMDSv2 only
     http_put_response_hop_limit = 1
   }
 
@@ -201,7 +201,7 @@ resource "aws_eks_node_group" "main" {
   ]
 
   lifecycle {
-    ignore_changes = [scaling_config[0].desired_size]  # Cluster Autoscaler manages this
+    ignore_changes = [scaling_config[0].desired_size] # Cluster Autoscaler manages this
   }
 }
 
@@ -244,7 +244,7 @@ resource "aws_iam_role" "ebs_csi" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {

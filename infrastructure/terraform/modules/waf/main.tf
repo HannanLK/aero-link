@@ -21,7 +21,7 @@ resource "aws_wafv2_web_acl" "this" {
         name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
         rule_action_override {
-          name          = "SizeRestrictions_BODY"
+          name = "SizeRestrictions_BODY"
           action_to_use {
             allow {}
           }

@@ -68,8 +68,12 @@ export class SeatsService {
 
   async getSeatMap(flightId: string) {
     const cacheKey = `flight:${flightId}:seat-map`;
-    const cached = await this.redis.get(cacheKey);
-    if (cached) return { source: 'cache', data: JSON.parse(cached) };
+    try {
+      const cached = await this.redis.get(cacheKey);
+      if (cached) return { source: 'cache', data: JSON.parse(cached) };
+    } catch {
+      // cache unavailable — fall through to the database
+    }
 
     const seats = await this.prisma.seat.findMany({
       where: { flightId },
@@ -77,7 +81,11 @@ export class SeatsService {
       orderBy: { seatNumber: 'asc' },
     });
 
-    await this.redis.set(cacheKey, JSON.stringify(seats), 'EX', 60);
+    try {
+      await this.redis.set(cacheKey, JSON.stringify(seats), 'EX', 60);
+    } catch {
+      // cache write failure is non-fatal
+    }
     return { source: 'db', data: seats };
   }
 }

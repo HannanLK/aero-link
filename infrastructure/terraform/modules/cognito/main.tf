@@ -73,7 +73,7 @@ resource "aws_cognito_user_pool_client" "spa" {
 
   callback_urls = [
     "https://${var.domain_name}/auth/callback",
-    "http://localhost:5173/auth/callback",  # local dev
+    "http://localhost:5173/auth/callback", # local dev
   ]
 
   logout_urls = [
@@ -83,9 +83,9 @@ resource "aws_cognito_user_pool_client" "spa" {
 
   supported_identity_providers = ["COGNITO"]
 
-  access_token_validity  = 60    # minutes
+  access_token_validity  = 60 # minutes
   id_token_validity      = 60
-  refresh_token_validity = 30    # days
+  refresh_token_validity = 30 # days
 
   token_validity_units {
     access_token  = "minutes"
@@ -124,7 +124,7 @@ resource "aws_cognito_resource_server" "internal" {
 
 # Service-to-service App Client (client credentials)
 resource "aws_cognito_user_pool_client" "service" {
-  depends_on = [aws_cognito_resource_server.internal]
+  depends_on   = [aws_cognito_resource_server.internal]
   name         = "${var.prefix}-service-client"
   user_pool_id = aws_cognito_user_pool.main.id
 

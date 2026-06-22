@@ -27,24 +27,24 @@ resource "aws_elasticache_replication_group" "main" {
   replication_group_id = "${var.prefix}-redis"
   description          = "AeroLink session cache, seat locks, idempotency keys"
 
-  node_type             = var.node_type
-  num_cache_clusters    = 2     # 1 primary + 1 replica for HA
-  port                  = 6379
-  parameter_group_name  = "default.redis7"
-  engine_version        = "7.1"
-  subnet_group_name     = aws_elasticache_subnet_group.main.name
-  security_group_ids    = [aws_security_group.redis.id]
+  node_type            = var.node_type
+  num_cache_clusters   = 2 # 1 primary + 1 replica for HA
+  port                 = 6379
+  parameter_group_name = "default.redis7"
+  engine_version       = "7.1"
+  subnet_group_name    = aws_elasticache_subnet_group.main.name
+  security_group_ids   = [aws_security_group.redis.id]
 
-  at_rest_encryption_enabled  = true
-  kms_key_id                  = var.cmk_pii_arn
-  transit_encryption_enabled  = true
-  auth_token                  = random_password.redis_auth.result
+  at_rest_encryption_enabled = true
+  kms_key_id                 = var.cmk_pii_arn
+  transit_encryption_enabled = true
+  auth_token                 = random_password.redis_auth.result
 
-  automatic_failover_enabled  = true
-  multi_az_enabled            = true
+  automatic_failover_enabled = true
+  multi_az_enabled           = true
 
-  snapshot_retention_limit    = 1
-  snapshot_window             = "03:00-04:00"
+  snapshot_retention_limit = 1
+  snapshot_window          = "03:00-04:00"
 
   log_delivery_configuration {
     destination      = aws_cloudwatch_log_group.redis.name
@@ -56,7 +56,7 @@ resource "aws_elasticache_replication_group" "main" {
 
 resource "random_password" "redis_auth" {
   length  = 32
-  special = false  # Redis AUTH token cannot contain commas or spaces
+  special = false # Redis AUTH token cannot contain commas or spaces
 }
 
 resource "aws_secretsmanager_secret" "redis_auth" {

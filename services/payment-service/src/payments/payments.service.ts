@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { TransactionStatus, TransactionType } from '@prisma/client';
+import { TransactionStatus, TransactionType } from '../../prisma/generated/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { TOPICS, buildPaymentCompletedEvent, buildPaymentFailedEvent } from '@aerolink/events';

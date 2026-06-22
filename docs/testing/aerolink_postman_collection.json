@@ -1,0 +1,331 @@
+{
+	"info": {
+		"_postman_id": "a972c3b8-527f-48ac-b120-cc578241c043",
+		"name": "AeroLink API E2E Collection",
+		"description": "End-to-End API test suite for AeroLink microservices. Authenticates via Cognito JWT, searches flights, triggers the booking saga, polls status, and completes check-in.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. User Registration",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"passenger_{{$randomInt}}@aerolink.app\",\n  \"password\": \"Demo@2024\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Smith\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/auth/register",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"auth",
+						"register"
+					]
+				},
+				"description": "Registers a new passenger user in the database. Generates a unique email dynamically."
+			},
+			"response": []
+		},
+		{
+			"name": "2. User Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"if (jsonData.accessToken) {",
+							"    pm.collectionVariables.set(\"accessToken\", jsonData.accessToken);",
+							"    pm.test(\"Token stored successfully\", function () {",
+							"        pm.expect(pm.collectionVariables.get(\"accessToken\")).to.not.be.empty;",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"passenger@aerolink.app\",\n  \"password\": \"Demo@2024\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"auth",
+						"login"
+					]
+				},
+				"description": "Authenticates the credentials and returns a Cognito JWT access token. Saves the token automatically in collection variables."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Search Flights",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"if (jsonData && jsonData.length > 0) {",
+							"    pm.collectionVariables.set(\"flightId\", jsonData[0].id);",
+							"    pm.test(\"Saved flight ID: \" + jsonData[0].id, function () {",
+							"        pm.expect(pm.collectionVariables.get(\"flightId\")).to.not.be.empty;",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/flights?origin=LHR&destination=DXB&departureDate=2026-07-01",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"flights"
+					],
+					"query": [
+						{
+							"key": "origin",
+							"value": "LHR"
+						},
+						{
+							"key": "destination",
+							"value": "DXB"
+						},
+						{
+							"key": "departureDate",
+							"value": "2026-07-01"
+						}
+					]
+				},
+				"description": "Searches for flights matching the query parameters. Extracts the first matching flight's ID to the `flightId` variable automatically."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Create Booking (Saga Starter)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"if (jsonData && jsonData.id) {",
+							"    pm.collectionVariables.set(\"bookingId\", jsonData.id);",
+							"    pm.test(\"Booking created successfully with ID: \" + jsonData.id, function () {",
+							"        pm.expect(pm.collectionVariables.get(\"bookingId\")).to.not.be.empty;",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Idempotency-Key",
+						"value": "{{$guid}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"flightId\": \"{{flightId}}\",\n  \"seatNumber\": \"{{$randomInt}}A\",\n  \"totalAmount\": 450.00,\n  \"currency\": \"USD\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/bookings",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"bookings"
+					]
+				},
+				"description": "Triggers the booking choreography saga. Creates a booking draft and publishes a booking created event to Kafka. Extracts the `bookingId` automatically."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Poll Booking Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/bookings/{{bookingId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"bookings",
+						"{{bookingId}}"
+					]
+				},
+				"description": "Polls the status of the booking. Within ~5 seconds, the saga status should transition from `PENDING` to `CONFIRMED` after Kafka seat allocation and Stripe payment succeed."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Check-in",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"if (jsonData && jsonData.id) {",
+							"    pm.collectionVariables.set(\"checkinId\", jsonData.id);",
+							"    pm.test(\"Check-in successful\", function () {",
+							"        pm.expect(pm.collectionVariables.get(\"checkinId\")).to.not.be.empty;",
+							"    });",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"bookingId\": \"{{bookingId}}\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/checkin",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"checkin"
+					]
+				},
+				"description": "Performs web check-in for the confirmed booking. Extracts the `checkinId` automatically."
+			},
+			"response": []
+		},
+		{
+			"name": "7. Get Boarding Pass QR",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/checkin/{{checkinId}}/pass",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"checkin",
+						"{{checkinId}}",
+						"pass"
+					]
+				},
+				"description": "Fetches the generated boarding pass containing the QR code URL from the check-in service."
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{accessToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://api.transnova.online/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "flightId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "bookingId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "checkinId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

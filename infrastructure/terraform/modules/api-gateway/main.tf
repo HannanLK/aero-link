@@ -81,6 +81,31 @@ resource "aws_apigatewayv2_route" "health" {
   target    = "integrations/${aws_apigatewayv2_integration.alb.id}"
 }
 
+# Public Swagger routes (bypass Cognito JWT validation)
+locals {
+  public_swagger_routes = [
+    "ANY /api/v1/flights/docs",
+    "ANY /api/v1/flights/docs/{proxy+}",
+    "ANY /api/v1/bookings/docs",
+    "ANY /api/v1/bookings/docs/{proxy+}",
+    "ANY /api/v1/payments/docs",
+    "ANY /api/v1/payments/docs/{proxy+}",
+    "ANY /api/v1/checkin/docs",
+    "ANY /api/v1/checkin/docs/{proxy+}",
+    "ANY /api/v1/baggage/docs",
+    "ANY /api/v1/baggage/docs/{proxy+}",
+    "ANY /api/v1/notifications/docs",
+    "ANY /api/v1/notifications/docs/{proxy+}",
+  ]
+}
+
+resource "aws_apigatewayv2_route" "public_swagger" {
+  for_each  = toset(local.public_swagger_routes)
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = each.value
+  target    = "integrations/${aws_apigatewayv2_integration.alb.id}"
+}
+
 # Stage with access logging
 resource "aws_cloudwatch_log_group" "api_gw" {
   name              = "/aws/apigateway/${var.prefix}"
@@ -96,14 +121,14 @@ resource "aws_apigatewayv2_stage" "default" {
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gw.arn
     format = jsonencode({
-      requestId      = "$context.requestId"
-      ip             = "$context.identity.sourceIp"
-      requestTime    = "$context.requestTime"
-      httpMethod     = "$context.httpMethod"
-      routeKey       = "$context.routeKey"
-      status         = "$context.status"
-      protocol       = "$context.protocol"
-      responseLength = "$context.responseLength"
+      requestId        = "$context.requestId"
+      ip               = "$context.identity.sourceIp"
+      requestTime      = "$context.requestTime"
+      httpMethod       = "$context.httpMethod"
+      routeKey         = "$context.routeKey"
+      status           = "$context.status"
+      protocol         = "$context.protocol"
+      responseLength   = "$context.responseLength"
       integrationError = "$context.integrationErrorMessage"
     })
   }

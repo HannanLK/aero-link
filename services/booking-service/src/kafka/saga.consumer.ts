@@ -1,7 +1,7 @@
 import { Injectable, Inject, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
 import { createKafka, ensureTopics } from '@aerolink/common-middleware';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus } from '../../prisma/generated/client';
 import {
   TOPICS,
   SeatLockConfirmedEventSchema,

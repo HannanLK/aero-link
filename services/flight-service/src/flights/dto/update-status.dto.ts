@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { FlightStatus } from '@prisma/client';
+import { FlightStatus } from '../../../prisma/generated/client';
 
 export class UpdateStatusDto {
   @IsEnum(FlightStatus)

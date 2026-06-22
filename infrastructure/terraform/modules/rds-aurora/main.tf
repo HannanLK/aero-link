@@ -34,35 +34,35 @@ resource "aws_rds_cluster_parameter_group" "main" {
 
   parameter {
     name  = "log_statement"
-    value = "ddl"  # Log DDL only — avoid logging PII from DML
+    value = "ddl" # Log DDL only — avoid logging PII from DML
   }
 
   parameter {
     name  = "log_min_duration_statement"
-    value = "1000"  # Log queries > 1 second
+    value = "1000" # Log queries > 1 second
   }
 }
 
 resource "aws_rds_cluster" "main" {
-  cluster_identifier      = "${var.prefix}-aurora"
-  engine                  = "aurora-postgresql"
-  engine_version          = var.engine_version
-  database_name           = "postgres"  # default DB; each service creates its own DB via migration
-  master_username         = "aerolink_admin"
-  master_password         = var.master_password
-  db_subnet_group_name    = aws_db_subnet_group.main.name
-  vpc_security_group_ids  = [aws_security_group.aurora.id]
+  cluster_identifier              = "${var.prefix}-aurora"
+  engine                          = "aurora-postgresql"
+  engine_version                  = var.engine_version
+  database_name                   = "postgres" # default DB; each service creates its own DB via migration
+  master_username                 = "aerolink_admin"
+  master_password                 = var.master_password
+  db_subnet_group_name            = aws_db_subnet_group.main.name
+  vpc_security_group_ids          = [aws_security_group.aurora.id]
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.main.name
 
-  storage_encrypted   = true
-  kms_key_id          = var.cmk_pii_arn
+  storage_encrypted = true
+  kms_key_id        = var.cmk_pii_arn
 
-  deletion_protection  = false   # Must be false to allow terraform destroy
-  skip_final_snapshot  = true    # No snapshot on destroy (dev only)
+  deletion_protection   = false # Must be false to allow terraform destroy
+  skip_final_snapshot   = true  # No snapshot on destroy (dev only)
   copy_tags_to_snapshot = true
 
-  backup_retention_period   = 7
-  preferred_backup_window   = "03:00-04:00"
+  backup_retention_period      = 7
+  preferred_backup_window      = "03:00-04:00"
   preferred_maintenance_window = "sun:04:00-sun:05:00"
 
   enabled_cloudwatch_logs_exports = ["postgresql"]
@@ -70,12 +70,12 @@ resource "aws_rds_cluster" "main" {
 
 # Writer instance
 resource "aws_rds_cluster_instance" "writer" {
-  identifier           = "${var.prefix}-aurora-writer"
-  cluster_identifier   = aws_rds_cluster.main.id
-  instance_class       = var.instance_class
-  engine               = aws_rds_cluster.main.engine
-  engine_version       = aws_rds_cluster.main.engine_version
-  publicly_accessible  = false
+  identifier          = "${var.prefix}-aurora-writer"
+  cluster_identifier  = aws_rds_cluster.main.id
+  instance_class      = var.instance_class
+  engine              = aws_rds_cluster.main.engine
+  engine_version      = aws_rds_cluster.main.engine_version
+  publicly_accessible = false
 
   performance_insights_enabled          = true
   performance_insights_kms_key_id       = var.cmk_pii_arn
@@ -87,12 +87,12 @@ resource "aws_rds_cluster_instance" "writer" {
 
 # Reader instance (Multi-AZ — different AZ from writer for HA)
 resource "aws_rds_cluster_instance" "reader" {
-  identifier           = "${var.prefix}-aurora-reader"
-  cluster_identifier   = aws_rds_cluster.main.id
-  instance_class       = var.instance_class
-  engine               = aws_rds_cluster.main.engine
-  engine_version       = aws_rds_cluster.main.engine_version
-  publicly_accessible  = false
+  identifier          = "${var.prefix}-aurora-reader"
+  cluster_identifier  = aws_rds_cluster.main.id
+  instance_class      = var.instance_class
+  engine              = aws_rds_cluster.main.engine
+  engine_version      = aws_rds_cluster.main.engine_version
+  publicly_accessible = false
 
   performance_insights_enabled          = true
   performance_insights_kms_key_id       = var.cmk_pii_arn

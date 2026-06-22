@@ -101,3 +101,23 @@ node_modules/.prisma
 tmp/
 temp/
 coverage/
+
+# Prisma generated clients (per-service, build output)
+services/*/prisma/generated/
+
+# Dev notes / AI tool artifacts
+memory/
+.claude/
+
+# FUSE temp files
+.fuse_hidden*
+
+# Terraform working files (state contains secrets, plans contain diffs)
+infrastructure/terraform/environments/**/.terraform/
+infrastructure/terraform/environments/**/*.tfstate*
+infrastructure/terraform/environments/**/tfplan
+infrastructure/terraform/environments/**/*.json
+infrastructure/terraform/environments/**/*.txt
+
+# Deployment secrets (AWS keys, Stripe keys, DB passwords — NEVER commit)
+infrastructure/deploy.env

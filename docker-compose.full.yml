@@ -83,11 +83,16 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      # ZK 3.5+ blocks four-letter-word commands (incl. `ruok`) unless whitelisted.
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "ruok,srvr,stat,mntr,conf,isro"
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      # Use bash's /dev/tcp (always present in the Confluent image) so the check
+      # doesn't depend on `nc` being installed; just verifies ZK is accepting on 2181.
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/2181' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
   kafka:
     <<: *service-defaults
@@ -123,11 +128,12 @@ services:
         for topic in \
           aerolink.booking.created aerolink.booking.confirmed \
           aerolink.booking.cancelled aerolink.booking.payment-initiated \
-          aerolink.booking.seat-released aerolink.seat-lock.confirmed \
-          aerolink.seat-lock.failed aerolink.payment.completed \
-          aerolink.payment.failed aerolink.checkin.completed \
-          aerolink.baggage.tagged aerolink.baggage.scanned \
-          aerolink.baggage.status-updated aerolink.identity.registered \
+          aerolink.booking.seat-released aerolink.seat.lock-confirmed \
+          aerolink.seat.lock-failed aerolink.seat.availability-updated \
+          aerolink.payment.completed aerolink.payment.failed \
+          aerolink.payment.refunded aerolink.checkin.completed \
+          aerolink.baggage.tag-created aerolink.baggage.status-updated \
+          aerolink.flight.status-changed aerolink.user.registered \
           aerolink.dlq
         do
           kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists \
@@ -150,9 +156,9 @@ services:
       dockerfile: services/identity-service/Dockerfile
     networks: [aerolink]
     user: root                         # needs write access to prisma engine cache
-    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
     environment:
-      DATABASE_URL: *db-url/identity_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/identity_service
     depends_on:
       postgres:
         condition: service_healthy
@@ -164,9 +170,9 @@ services:
       dockerfile: services/flight-service/Dockerfile
     networks: [aerolink]
     user: root
-    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
     environment:
-      DATABASE_URL: *db-url/flight_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/flight_service
     depends_on:
       postgres:
         condition: service_healthy
@@ -178,9 +184,9 @@ services:
       dockerfile: services/booking-service/Dockerfile
     networks: [aerolink]
     user: root
-    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
     environment:
-      DATABASE_URL: *db-url/booking_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/booking_service
     depends_on:
       postgres:
         condition: service_healthy
@@ -192,9 +198,9 @@ services:
       dockerfile: services/payment-service/Dockerfile
     networks: [aerolink]
     user: root
-    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
     environment:
-      DATABASE_URL: *db-url/payment_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/payment_service
     depends_on:
       postgres:
         condition: service_healthy
@@ -206,9 +212,9 @@ services:
       dockerfile: services/checkin-service/Dockerfile
     networks: [aerolink]
     user: root
-    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
     environment:
-      DATABASE_URL: *db-url/checkin_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/checkin_service
     depends_on:
       postgres:
         condition: service_healthy
@@ -225,15 +231,16 @@ services:
       - "3001:3000"
     environment:
       PORT: 3000
+      NODE_OPTIONS: --dns-result-order=ipv4first
       <<: [*kafka-env, *jwt-env]
-      DATABASE_URL: *db-url/identity_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/identity_service
     depends_on:
       identity-migrate:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/live || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/v1/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -248,8 +255,9 @@ services:
       - "3002:3000"
     environment:
       PORT: 3000
+      NODE_OPTIONS: --dns-result-order=ipv4first
       <<: *kafka-env
-      DATABASE_URL: *db-url/flight_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/flight_service
       REDIS_URL: redis://:aerolink_dev@redis:6379
     depends_on:
       flight-migrate:
@@ -259,7 +267,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/live || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/v1/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -274,15 +282,16 @@ services:
       - "3003:3000"
     environment:
       PORT: 3000
+      NODE_OPTIONS: --dns-result-order=ipv4first
       <<: *kafka-env
-      DATABASE_URL: *db-url/booking_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/booking_service
     depends_on:
       booking-migrate:
         condition: service_completed_successfully
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/live || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/v1/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -297,8 +306,9 @@ services:
       - "3004:3000"
     environment:
       PORT: 3000
+      NODE_OPTIONS: --dns-result-order=ipv4first
       <<: *kafka-env
-      DATABASE_URL: *db-url/payment_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/payment_service
       # Replace with a real Stripe test key: sk_test_...
       STRIPE_SECRET_KEY: sk_test_placeholder_replace_before_use
     depends_on:
@@ -307,7 +317,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/live || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/v1/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -322,8 +332,9 @@ services:
       - "3005:3000"
     environment:
       PORT: 3000
+      NODE_OPTIONS: --dns-result-order=ipv4first
       <<: *kafka-env
-      DATABASE_URL: *db-url/checkin_service
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/checkin_service
       LAMBDA_QR_DISABLED: "true"       # no AWS Lambda in local dev
     depends_on:
       checkin-migrate:
@@ -331,7 +342,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/live || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/v1/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -346,6 +357,7 @@ services:
       - "3006:3000"
     environment:
       PORT: 3000
+      NODE_OPTIONS: --dns-result-order=ipv4first
       <<: *kafka-env
       AWS_REGION: ap-southeast-1
       AWS_ACCESS_KEY_ID: local
@@ -358,7 +370,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/live || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/v1/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -373,6 +385,7 @@ services:
       - "3007:3000"
     environment:
       PORT: 3000
+      NODE_OPTIONS: --dns-result-order=ipv4first
       <<: *kafka-env
       NOTIFICATION_DRIVER: log     # logs to stdout; no SES in local dev
     depends_on:
@@ -418,7 +431,21 @@ services:
       postgres:
         condition: service_healthy
 
-# ─── Kafka UI ────────────────────────────────────────────────────────────────
+
+  flight-seed:
+    build:
+      <<: *build-defaults
+      dockerfile: services/flight-service/Dockerfile
+    networks: [aerolink]
+    restart: "no"
+    entrypoint: ["node", "/seed-flights.js"]
+    environment:
+      DATABASE_URL: postgresql://aerolink:aerolink_dev@postgres:5432/flight_service
+    volumes:
+      - ./infrastructure/dev/seed-flights.js:/seed-flights.js:ro
+    depends_on:
+      flight-migrate:
+        condition: service_completed_successfully
 
   kafka-ui:
     <<: *service-defaults

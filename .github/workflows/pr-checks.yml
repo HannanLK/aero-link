@@ -39,4 +39,9 @@ jobs:
       - run: npm ci
       - name: Run ESLint import boundary check
         run: |
-          npx eslint services/ --rule '{"no-restricted-imports": ["error", {"patterns": ["../../*-service/*"]}]}'
+          npx eslint services/ \
+            --no-eslintrc \
+            --parser @typescript-eslint/parser \
+            --plugin @typescript-eslint \
+            --ext .ts \
+            --rule '{"no-restricted-imports": ["error", {"patterns": ["../../*-service/*"]}]}'

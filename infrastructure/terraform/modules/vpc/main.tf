@@ -16,8 +16,8 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                        = "${var.prefix}-public-${var.azs[count.index]}"
-    "kubernetes.io/role/elb"                    = "1"
+    Name                                            = "${var.prefix}-public-${var.azs[count.index]}"
+    "kubernetes.io/role/elb"                        = "1"
     "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
   }
 }
@@ -29,8 +29,8 @@ resource "aws_subnet" "private" {
   availability_zone = var.azs[count.index]
 
   tags = {
-    Name                                        = "${var.prefix}-private-${var.azs[count.index]}"
-    "kubernetes.io/role/internal-elb"           = "1"
+    Name                                            = "${var.prefix}-private-${var.azs[count.index]}"
+    "kubernetes.io/role/internal-elb"               = "1"
     "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
   }
 }
@@ -62,7 +62,7 @@ resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public[0].id
 
-  tags = { Name = "${var.prefix}-nat" }
+  tags       = { Name = "${var.prefix}-nat" }
   depends_on = [aws_internet_gateway.main]
 }
 

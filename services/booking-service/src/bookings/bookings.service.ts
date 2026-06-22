@@ -1,5 +1,5 @@
 import { Injectable, ConflictException, NotFoundException, Logger } from '@nestjs/common';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus } from '../../prisma/generated/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { TOPICS, buildBookingCreatedEvent } from '@aerolink/events';

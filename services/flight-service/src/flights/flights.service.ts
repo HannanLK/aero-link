@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
-import { FlightStatus } from '@prisma/client';
+import { FlightStatus } from '../../prisma/generated/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { KafkaProducerService } from '../kafka/kafka-producer.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
@@ -21,9 +21,13 @@ export class FlightsService {
   async search(dto: SearchFlightsDto) {
     // Read-side: try Redis projection first
     const cacheKey = `flights:search:${dto.origin}:${dto.destination}:${dto.date}`;
-    const cached = await this.redis.get(cacheKey);
-    if (cached) {
-      return { source: 'cache', data: JSON.parse(cached) };
+    try {
+      const cached = await this.redis.get(cacheKey);
+      if (cached) {
+        return { source: 'cache', data: JSON.parse(cached) };
+      }
+    } catch {
+      // cache unavailable — fall through to the database (search must still work)
     }
 
     const from = new Date(dto.date);
@@ -42,7 +46,11 @@ export class FlightsService {
       orderBy: { scheduledDep: 'asc' },
     });
 
-    await this.redis.set(cacheKey, JSON.stringify(flights), 'EX', 60);
+    try {
+      await this.redis.set(cacheKey, JSON.stringify(flights), 'EX', 60);
+    } catch {
+      // cache write failure is non-fatal
+    }
     return { source: 'db', data: flights };
   }
 

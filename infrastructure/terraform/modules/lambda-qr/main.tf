@@ -34,7 +34,7 @@ resource "aws_lambda_permission" "checkin_invoke" {
   function_name = aws_lambda_function.qr_generator.function_name
   principal     = var.checkin_role_arn
   # principal_org_id not needed — same account, role-based allow
-  source_arn    = null
+  source_arn = null
 
   depends_on = [aws_lambda_function.qr_generator]
 }

@@ -1,0 +1,9 @@
+# Docs directory — ignore temporary and OS-generated files
+
+# Word temp files (created when a .docx is open)
+~$*
+
+# OS metadata
+Thumbs.db
+.DS_Store
+Desktop.ini

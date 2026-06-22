@@ -8,31 +8,31 @@ resource "helm_release" "aws_lbc" {
   namespace  = "kube-system"
 
   set {
-    name = "clusterName"
+    name  = "clusterName"
     value = var.eks_cluster_name
   }
   set {
-    name = "serviceAccount.create"
+    name  = "serviceAccount.create"
     value = "true"
   }
   set {
-    name = "serviceAccount.name"
+    name  = "serviceAccount.name"
     value = "aws-load-balancer-controller"
   }
   set {
-    name = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = var.lbc_role_arn
   }
   set {
-    name = "region"
+    name  = "region"
     value = var.aws_region
   }
   set {
-    name = "vpcId"
+    name  = "vpcId"
     value = var.vpc_id
   }
   set {
-    name = "replicaCount"
+    name  = "replicaCount"
     value = "2"
   }
 }
@@ -40,25 +40,25 @@ resource "helm_release" "aws_lbc" {
 # ─── External Secrets Operator ────────────────────────────────────────────────
 
 resource "helm_release" "external_secrets" {
-  name       = "external-secrets"
-  repository = "https://charts.external-secrets.io"
-  chart      = "external-secrets"
-  version    = "0.9.16"
-  namespace  = "external-secrets"
+  name             = "external-secrets"
+  repository       = "https://charts.external-secrets.io"
+  chart            = "external-secrets"
+  version          = "0.9.16"
+  namespace        = "external-secrets"
   create_namespace = true
-  wait              = true
-  timeout           = 900
+  wait             = true
+  timeout          = 900
 
   set {
     name  = "installCRDs"
     value = "true"
   }
   set {
-    name = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = var.external_secrets_role_arn
   }
   set {
-    name = "replicaCount"
+    name  = "replicaCount"
     value = "2"
   }
 }
@@ -83,23 +83,23 @@ resource "helm_release" "cluster_autoscaler" {
   namespace  = "kube-system"
 
   set {
-    name = "autoDiscovery.clusterName"
+    name  = "autoDiscovery.clusterName"
     value = var.eks_cluster_name
   }
   set {
-    name = "awsRegion"
+    name  = "awsRegion"
     value = var.aws_region
   }
   set {
-    name = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    name  = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = var.cluster_autoscaler_role_arn
   }
   set {
-    name = "extraArgs.balance-similar-node-groups"
+    name  = "extraArgs.balance-similar-node-groups"
     value = "true"
   }
   set {
-    name = "extraArgs.skip-nodes-with-system-pods"
+    name  = "extraArgs.skip-nodes-with-system-pods"
     value = "false"
   }
 }
@@ -107,15 +107,15 @@ resource "helm_release" "cluster_autoscaler" {
 # ─── KEDA ─────────────────────────────────────────────────────────────────────
 
 resource "helm_release" "keda" {
-  name       = "keda"
-  repository = "https://kedacore.github.io/charts"
-  chart      = "keda"
-  version    = "2.14.2"
-  namespace  = "keda"
+  name             = "keda"
+  repository       = "https://kedacore.github.io/charts"
+  chart            = "keda"
+  version          = "2.14.2"
+  namespace        = "keda"
   create_namespace = true
 
   set {
-    name = "replicaCount"
+    name  = "replicaCount"
     value = "2"
   }
 }
@@ -123,11 +123,11 @@ resource "helm_release" "keda" {
 # ─── Fluent Bit (logs → CloudWatch) ──────────────────────────────────────────
 
 resource "helm_release" "fluent_bit" {
-  name       = "fluent-bit"
-  repository = "https://fluent.github.io/helm-charts"
-  chart      = "fluent-bit"
-  version    = "0.46.11"
-  namespace  = "logging"
+  name             = "fluent-bit"
+  repository       = "https://fluent.github.io/helm-charts"
+  chart            = "fluent-bit"
+  version          = "0.46.11"
+  namespace        = "logging"
   create_namespace = true
 
   values = [yamlencode({
@@ -162,11 +162,11 @@ resource "helm_release" "fluent_bit" {
 # ─── OpenTelemetry Collector (traces → X-Ray + Elastic APM) ──────────────────
 
 resource "helm_release" "otel_collector" {
-  name       = "opentelemetry-collector"
-  repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
-  chart      = "opentelemetry-collector"
-  version    = "0.89.0"
-  namespace  = "monitoring"
+  name             = "opentelemetry-collector"
+  repository       = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+  chart            = "opentelemetry-collector"
+  version          = "0.89.0"
+  namespace        = "monitoring"
   create_namespace = true
 
   values = [yamlencode({
@@ -208,21 +208,21 @@ resource "helm_release" "argocd" {
         enabled          = true
         ingressClassName = "alb"
         annotations = {
-          "alb.ingress.kubernetes.io/scheme"           = "internet-facing"
-          "alb.ingress.kubernetes.io/target-type"      = "ip"
-          "alb.ingress.kubernetes.io/certificate-arn"  = var.argocd_ingress_certificate_arn
-          "alb.ingress.kubernetes.io/listen-ports"     = "[{\"HTTPS\":443}]"
-          "alb.ingress.kubernetes.io/ssl-redirect"     = "443"
+          "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
+          "alb.ingress.kubernetes.io/target-type"     = "ip"
+          "alb.ingress.kubernetes.io/certificate-arn" = var.argocd_ingress_certificate_arn
+          "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTPS\":443}]"
+          "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
         }
         hosts = ["argocd.${var.domain_name}"]
         tls   = [{ hosts = ["argocd.${var.domain_name}"], secretName = "argocd-tls" }]
       }
-      extraArgs = ["--insecure"]  # TLS terminated at ALB
+      extraArgs = ["--insecure"] # TLS terminated at ALB
     }
     configs = {
       params = { "server.insecure" = "true" }
     }
-    repoServer = { replicas = 2 }
+    repoServer     = { replicas = 2 }
     applicationSet = { replicaCount = 2 }
   })]
 
@@ -232,11 +232,11 @@ resource "helm_release" "argocd" {
 # Bootstrap CRD-backed resources with Helm so Terraform does not need live CRD
 # discovery during planning.
 resource "helm_release" "bootstrap" {
-  name       = "eks-bootstrap"
-  chart      = "${path.module}/../../../helm/eks-bootstrap"
-  namespace  = "kube-system"
-  wait       = true
-  timeout    = 900
+  name      = "eks-bootstrap"
+  chart     = "${path.module}/../../../helm/eks-bootstrap"
+  namespace = "kube-system"
+  wait      = true
+  timeout   = 900
 
   set {
     name  = "awsRegion"

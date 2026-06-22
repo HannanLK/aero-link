@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationsService } from './notifications.service';
 
 const mockConfig = {
+  // `get` is used for optional config (e.g. NOTIFICATION_DRIVER). Returning
+  // undefined here keeps the service in the default 'aws' driver mode so these
+  // tests exercise the SES/SNS/DynamoDB paths.
+  get: jest.fn(() => undefined),
   getOrThrow: jest.fn((k: string) => {
     switch (k) {
       case 'AWS_REGION': return 'us-east-1';

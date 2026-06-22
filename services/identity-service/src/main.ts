@@ -29,8 +29,8 @@ async function bootstrap() {
     .addTag('auth')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  // Swagger UI at /docs, raw spec at /docs/json
-  SwaggerModule.setup('docs', app, document, { jsonDocumentUrl: 'docs/json' });
+  // Swagger UI at api/v1/auth/docs, raw spec at api/v1/auth/docs/json
+  SwaggerModule.setup('api/v1/auth/docs', app, document, { jsonDocumentUrl: 'api/v1/auth/docs/json' });
 
   await app.listen(Number(process.env.PORT ?? 3001), '0.0.0.0');
 }

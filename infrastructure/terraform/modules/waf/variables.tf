@@ -1,5 +1,5 @@
 variable "prefix" { type = string }
-variable "scope"  {
+variable "scope" {
   type    = string
   default = "REGIONAL"
   validation {

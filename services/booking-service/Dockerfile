@@ -8,7 +8,7 @@ COPY packages/ ./packages/
 COPY services/booking-service/ ./services/booking-service/
 
 # Full install - all workspaces, all deps
-RUN npm ci --ignore-scripts
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 COPY tsconfig.base.json ./
 
@@ -37,12 +37,11 @@ COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/services/booking-service/node_modules ./services/booking-service/node_modules
 COPY --from=builder /app/services/booking-service/dist ./services/booking-service/dist
 COPY --from=builder /app/services/booking-service/prisma ./services/booking-service/prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s \
-  CMD node -e "require('http').get('http://localhost:3000/api/v1/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+  CMD node -e "require('http').get('http://127.0.0.1:3000/api/v1/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 WORKDIR /app/services/booking-service
 CMD ["node", "dist/main"]

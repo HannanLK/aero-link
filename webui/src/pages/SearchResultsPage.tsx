@@ -160,8 +160,9 @@ export function SearchResultsPage() {
   }
 
   function handleBook(flightId: string) {
+    const flightObj = flights.find((f: any) => f.id === flightId);
     if (!token) navigate(`/login?redirect=/flights/${flightId}/book`);
-    else navigate(`/flights/${flightId}/book`, { state: { flightId } });
+    else navigate(`/flights/${flightId}/book`, { state: { flight: flightObj } });
   }
 
   function toggleCompare(id: string) {

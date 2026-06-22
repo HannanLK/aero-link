@@ -91,7 +91,7 @@ resource "aws_msk_cluster" "main" {
 
   open_monitoring {
     prometheus {
-      jmx_exporter  { enabled_in_broker = true }
+      jmx_exporter { enabled_in_broker = true }
       node_exporter { enabled_in_broker = true }
     }
   }

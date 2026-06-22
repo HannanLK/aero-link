@@ -13,11 +13,13 @@ export type NotificationType = 'WELCOME' | 'BOOKING_CONFIRMED' | 'PAYMENT_CONFIR
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private readonly ses: SESClient;
-  private readonly sns: SNSClient;
+  private readonly ses?: SESClient;
+  private readonly sns?: SNSClient;
   // typed `any` to sidestep @aws-sdk/lib-dynamodb vs @smithy/types version skew (runtime is unaffected)
   private readonly dynamo: any;
-  private readonly tableName: string;
+  private readonly tableName?: string;
+  /** 'log' = local mode: write to stdout, no AWS calls. 'aws' = SES/SNS/DynamoDB. */
+  private readonly driver: string;
 
   /**
    * Circuit breakers for external notification providers.
@@ -41,6 +43,12 @@ export class NotificationsService {
   });
 
   constructor(private readonly config: ConfigService) {
+    this.driver = (config.get<string>('NOTIFICATION_DRIVER') ?? 'aws').toLowerCase();
+    if (this.driver === 'log') {
+      // Local/dev mode: no AWS resources required.
+      this.logger.log('NotificationsService running in "log" driver mode — notifications are written to stdout, no AWS calls.');
+      return;
+    }
     const region = config.getOrThrow('AWS_REGION');
     this.ses = new SESClient({ region });
     this.sns = new SNSClient({ region });
@@ -58,6 +66,11 @@ export class NotificationsService {
     const now = new Date().toISOString();
     let deliveryStatus: 'SENT' | 'FAILED' | 'CIRCUIT_OPEN' = 'SENT';
 
+    if (this.driver === 'log') {
+      this.logger.log(`[notification:log] ${type} via ${channel} → user ${userId} :: ${JSON.stringify(payload)}`);
+      return { notificationId, type, channel, deliveryStatus, sentAt: now };
+    }
+
     try {
       if (channel === 'EMAIL' && payload.email) {
         await this.sendEmail(payload.email as string, type, payload);
@@ -73,7 +86,7 @@ export class NotificationsService {
 
     // Always persist the notification record to DynamoDB
     await this.dynamo.send(new PutCommand({
-      TableName: this.tableName,
+      TableName: this.tableName!,
       Item: {
         userId,
         createdAt: now,
@@ -90,8 +103,12 @@ export class NotificationsService {
   }
 
   async getHistory(userId: string, limit = 20) {
+    if (this.driver === 'log') {
+      this.logger.log(`[notification:log] getHistory(${userId}) — no persistent store in log mode, returning []`);
+      return [];
+    }
     const result = await this.dynamo.send(new QueryCommand({
-      TableName: this.tableName,
+      TableName: this.tableName!,
       KeyConditionExpression: 'userId = :userId',
       ExpressionAttributeValues: { ':userId': userId },
       Limit: limit,
@@ -108,7 +125,7 @@ export class NotificationsService {
       () =>
         retryWithBackoff(
           () =>
-            this.ses.send(new SendEmailCommand({
+            this.ses!.send(new SendEmailCommand({
               Source: this.config.getOrThrow('SES_FROM_ADDRESS'),
               Destination: { ToAddresses: [to] },
               Message: {
@@ -138,7 +155,7 @@ export class NotificationsService {
       () =>
         retryWithBackoff(
           () =>
-            this.sns.send(new PublishCommand({
+            this.sns!.send(new PublishCommand({
               PhoneNumber: phone,
               Message: message,
             })),

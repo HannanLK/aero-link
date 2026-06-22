@@ -66,6 +66,7 @@ export function initTracing(serviceName: string): void {
     const shutdown = () =>
       sdk
         .shutdown()
+        // eslint-disable-next-line no-console
         .catch((err: unknown) => console.error('[tracing] shutdown error', err))
         .finally(() => process.exit(0));
     process.on('SIGTERM', shutdown);

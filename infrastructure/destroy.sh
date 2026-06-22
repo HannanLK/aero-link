@@ -38,8 +38,28 @@ say(){ echo -e "${c_grn}▶ $*${c_rst}"; }
 warn(){ echo -e "${c_yel}⚠ $*${c_rst}"; }
 
 echo -e "${c_red}This DESTROYS all AeroLink AWS infrastructure for the dev environment.${c_rst}"
-read -r -p "Type 'destroy' to confirm: " ans
-[ "$ans" = "destroy" ] || { warn "Aborted."; exit 1; }
+# Allow non-interactive teardown: `./destroy.sh --yes` (or CONFIRM=destroy ./destroy.sh).
+# Also force the prompt to read from the real terminal so double-clicking the
+# script (no stdin) doesn't instantly read an empty line and silently abort.
+WANT_NUKE=""
+SKIP_CONFIRM=""
+for a in "$@"; do
+  case "$a" in
+    --yes|-y) SKIP_CONFIRM=1 ;;
+    --nuke)   WANT_NUKE=1 ;;
+  esac
+done
+[ "${CONFIRM:-}" = "destroy" ] && SKIP_CONFIRM=1
+if [ -z "$SKIP_CONFIRM" ]; then
+  if [ -r /dev/tty ]; then
+    read -r -p "Type 'destroy' to confirm: " ans < /dev/tty
+  else
+    warn "No terminal available for confirmation."
+    warn "Re-run with:  ./destroy.sh --yes   (or)   CONFIRM=destroy ./destroy.sh"
+    exit 1
+  fi
+  [ "$ans" = "destroy" ] || { warn "Aborted."; exit 1; }
+fi
 
 aws configure set aws_access_key_id     "$AWS_ACCESS_KEY_ID"
 aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
@@ -84,7 +104,7 @@ if [ -n "$LEFT" ]; then
   for arn in $LEFT; do aws elbv2 delete-load-balancer --load-balancer-arn "$arn" --region "$AWS_DEFAULT_REGION" || true; done
 fi
 
-if [ "${1:-}" = "--nuke" ]; then
+if [ -n "$WANT_NUKE" ]; then
   warn "Deleting Terraform state bucket + lock table"
   aws s3 rb "s3://$TF_STATE_BUCKET" --force --region "$AWS_DEFAULT_REGION" || true
   aws dynamodb delete-table --table-name "$TF_LOCK_TABLE" --region "$AWS_DEFAULT_REGION" || true

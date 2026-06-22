@@ -29,8 +29,8 @@ async function bootstrap() {
     .addTag('flights')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  // Swagger UI at /docs, raw spec at /docs/json
-  SwaggerModule.setup('docs', app, document, { jsonDocumentUrl: 'docs/json' });
+  // Swagger UI at api/v1/flights/docs, raw spec at api/v1/flights/docs/json
+  SwaggerModule.setup('api/v1/flights/docs', app, document, { jsonDocumentUrl: 'api/v1/flights/docs/json' });
 
   await app.listen(Number(process.env.PORT ?? 3002), '0.0.0.0');
 }

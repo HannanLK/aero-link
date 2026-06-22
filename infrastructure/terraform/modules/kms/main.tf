@@ -16,18 +16,18 @@ resource "aws_kms_key" "cmk_pci" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
         Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
-        Action   = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       },
       {
-        Sid    = "CloudTrailEncrypt"
-        Effect = "Allow"
+        Sid       = "CloudTrailEncrypt"
+        Effect    = "Allow"
         Principal = { Service = "cloudtrail.amazonaws.com" }
-        Action   = ["kms:GenerateDataKey*", "kms:Decrypt"]
-        Resource = "*"
+        Action    = ["kms:GenerateDataKey*", "kms:Decrypt"]
+        Resource  = "*"
       }
     ]
   })
@@ -48,18 +48,18 @@ resource "aws_kms_key" "cmk_pii" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
         Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
-        Action   = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       },
       {
-        Sid    = "AllowCloudWatchLogs"
-        Effect = "Allow"
+        Sid       = "AllowCloudWatchLogs"
+        Effect    = "Allow"
         Principal = { Service = "logs.${local.region}.amazonaws.com" }
-        Action   = ["kms:Encrypt*", "kms:Decrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
-        Resource = "*"
+        Action    = ["kms:Encrypt*", "kms:Decrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
+        Resource  = "*"
       }
     ]
   })
@@ -80,25 +80,25 @@ resource "aws_kms_key" "cmk_infra" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
+        Sid       = "EnableRootAccess"
+        Effect    = "Allow"
         Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
-        Action   = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       },
       {
-        Sid    = "AllowCloudWatchLogs"
-        Effect = "Allow"
+        Sid       = "AllowCloudWatchLogs"
+        Effect    = "Allow"
         Principal = { Service = "logs.${local.region}.amazonaws.com" }
-        Action   = ["kms:Encrypt*", "kms:Decrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
-        Resource = "*"
+        Action    = ["kms:Encrypt*", "kms:Decrypt*", "kms:GenerateDataKey*", "kms:Describe*"]
+        Resource  = "*"
       },
       {
-        Sid    = "AllowS3"
-        Effect = "Allow"
+        Sid       = "AllowS3"
+        Effect    = "Allow"
         Principal = { Service = "s3.amazonaws.com" }
-        Action   = ["kms:GenerateDataKey*", "kms:Decrypt"]
-        Resource = "*"
+        Action    = ["kms:GenerateDataKey*", "kms:Decrypt"]
+        Resource  = "*"
       }
     ]
   })

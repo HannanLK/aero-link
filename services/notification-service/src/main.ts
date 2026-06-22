@@ -29,8 +29,8 @@ async function bootstrap() {
     .addTag('notifications')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  // Swagger UI at /docs, raw spec at /docs/json
-  SwaggerModule.setup('docs', app, document, { jsonDocumentUrl: 'docs/json' });
+  // Swagger UI at api/v1/notifications/docs, raw spec at api/v1/notifications/docs/json
+  SwaggerModule.setup('api/v1/notifications/docs', app, document, { jsonDocumentUrl: 'api/v1/notifications/docs/json' });
 
   await app.listen(Number(process.env.PORT ?? 3007), '0.0.0.0');
 }
