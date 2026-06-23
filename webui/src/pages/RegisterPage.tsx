@@ -16,7 +16,11 @@ export function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await authApi.register(form);
+      // Omit optional fields left blank — sending phone:'' fails the backend's
+      // phone-format validation (@IsOptional only skips null/undefined, not '').
+      const payload = { ...form };
+      if (!payload.phone?.trim()) delete (payload as Partial<typeof form>).phone;
+      await authApi.register(payload);
       navigate('/login');
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Registration failed');

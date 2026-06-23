@@ -47,9 +47,13 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 migrations:
-  enabled: false
+  enabled: true
 
 env:
+  # CORS allowlist (comma-separated). Per-environment placeholder — set to the
+  # site URL(s). If removed/empty, services fall back to localhost (any port).
+  - name: CORS_ORIGINS
+    value: "https://transnova.online,http://localhost:5173"
   - name: NODE_ENV
     value: production
   - name: PORT

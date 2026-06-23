@@ -16,6 +16,23 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new GlobalHttpExceptionFilter());
   app.setGlobalPrefix('api/v1');
+  // ── CORS ─────────────────────────────────────────────────────────────
+  // The SPA calls this API cross-origin, so each service answers the OPTIONS
+  // preflight and sets the ACAO headers (the API Gateway no longer owns CORS).
+  //  - CORS_ORIGINS env (comma-separated) is the allowlist in deployed envs.
+  //  - If unset, allow any localhost / 127.0.0.1 port — covers local dev and
+  //    `kubectl port-forward` of the running app without baking a prod URL in.
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : [/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
+  app.enableCors({
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'Idempotency-Key'],
+    maxAge: 3600,
+  });
+
 
   // ── OpenAPI / Swagger ──────────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()

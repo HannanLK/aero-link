@@ -214,8 +214,13 @@ resource "helm_release" "argocd" {
           "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTPS\":443}]"
           "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
         }
-        hosts = ["argocd.${var.domain_name}"]
-        tls   = [{ hosts = ["argocd.${var.domain_name}"], secretName = "argocd-tls" }]
+        # argo-cd chart 6.10.2 schema: hostname is a string, tls is a boolean.
+        # (The old `hosts`/`tls` list schema was silently ignored -> default
+        #  argocd.example.com -> ALB 404 for argocd.<domain>.)
+        hostname = "argocd.${var.domain_name}"
+        path     = "/"
+        pathType = "Prefix"
+        tls      = false # TLS terminated at the ALB via certificate-arn annotation
       }
       extraArgs = ["--insecure"] # TLS terminated at ALB
     }

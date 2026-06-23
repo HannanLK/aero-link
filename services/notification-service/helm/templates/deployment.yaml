@@ -18,6 +18,27 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+      {{- if .Values.migrations.enabled }}
+      # Schema migration — runs to completion before the app container starts.
+      # Mirrors the docker-compose `*-migrate` one-shots. `prisma` CLI is a
+      # runtime dependency (not pruned), so the prod image can run db push.
+      initContainers:
+        - name: prisma-migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - "npx prisma db push --skip-generate --accept-data-loss --schema=prisma/schema.prisma"
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+      {{- end }}
       containers:
         - name: {{ .Release.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

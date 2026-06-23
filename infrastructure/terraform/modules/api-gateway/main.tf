@@ -5,12 +5,16 @@ resource "aws_apigatewayv2_api" "http" {
   protocol_type = "HTTP"
   description   = "AeroLink HTTP API — routes to EKS ALB"
 
-  cors_configuration {
-    allow_origins = ["https://${var.domain_name}", "http://localhost:5173"]
-    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    allow_headers = ["Content-Type", "Authorization", "X-Correlation-ID", "Idempotency-Key"]
-    max_age       = 3600
-  }
+  # NOTE: CORS is intentionally NOT configured at the API Gateway here.
+  # Every route below uses `ANY`, which captures the browser's `OPTIONS`
+  # preflight. When `cors_configuration` is also set, API Gateway (a) only
+  # auto-answers OPTIONS for routes it is NOT explicitly handling, and
+  # (b) STRIPS/overrides any CORS headers the backend returns — so the two
+  # mechanisms fight and preflights to `ANY` routes fall through (404 on
+  # public routes, 401 on JWT-protected routes). CORS is now owned by the
+  # NestJS services (app.enableCors), exactly like the local nginx gateway.
+  # The dedicated unauthenticated `OPTIONS /api/v1/{proxy+}` route below lets
+  # preflights reach the backend without a JWT.
 }
 
 # JWT Authorizer using Cognito
@@ -66,6 +70,18 @@ resource "aws_apigatewayv2_route" "protected" {
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
   target             = "integrations/${aws_apigatewayv2_integration.alb.id}"
+}
+
+# CORS preflight — unauthenticated. A method-specific OPTIONS route is more
+# specific than the `ANY` routes above, so it wins for OPTIONS requests and,
+# crucially, carries NO JWT authorizer. Without this, an OPTIONS preflight to a
+# protected path (e.g. /api/v1/flights/.../seats) is rejected with 401 by the
+# Cognito authorizer because the browser never sends Authorization on preflight.
+# The backend (app.enableCors) answers the forwarded OPTIONS with 204 + headers.
+resource "aws_apigatewayv2_route" "cors_preflight" {
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "OPTIONS /api/v1/{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.alb.id}"
 }
 
 # Public routes (no auth — login/register)

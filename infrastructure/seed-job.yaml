@@ -1,0 +1,206 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AeroLink — cluster seed (run AFTER services are Running/Healthy).
+#   kubectl -n aerolink apply -f infrastructure/seed-job.yaml
+#   kubectl -n aerolink wait --for=condition=complete job/flight-seed job/demo-seed --timeout=300s
+#   kubectl -n aerolink logs job/demo-seed
+# Idempotent: re-applying re-seeds. Delete old jobs first if re-running:
+#   kubectl -n aerolink delete job flight-seed demo-seed --ignore-not-found
+# Mirrors docker-compose `flight-seed` + `demo-seed`. The per-service DB schema
+# is created by the `prisma-migrate` initContainers; this only loads DATA.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flight-seed-script
+  namespace: aerolink
+data:
+  seed-flights.js: |
+    /* eslint-disable */
+    // Seeds aircraft + flights + seats into the flight-service database.
+    // WIPES and re-seeds on every run so flight dates are always current
+    // (today .. today+13), avoiding stale-date issues from earlier runs.
+    const { PrismaClient } = require('/app/services/flight-service/prisma/generated/client');
+    const prisma = new PrismaClient();
+
+    // Routes seeded (both directions). Includes the webui's default SIN->KUL.
+    const ROUTES = [
+      ['SQ862', 'SIN', 'KUL'],
+      ['MH606', 'KUL', 'SIN'],
+      ['SQ638', 'SIN', 'CMB'],
+      ['UL309', 'CMB', 'SIN'],
+      ['EK654', 'DXB', 'CMB'],
+      ['UL225', 'CMB', 'DXB'],
+      ['SQ448', 'SIN', 'DXB'],
+      ['EK432', 'DXB', 'SIN'],
+    ];
+    const DAYS = 14;                      // today .. today+13
+    const ROWS = 30;
+    const COLS = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const PRE_BOOKED = ['1A', '1B', '3C', '10D', '15F']; // shown blocked in the grid
+
+    function buildSeats(flightId) {
+      const seats = [];
+      for (let r = 1; r <= ROWS; r++) {
+        const cls = r <= 2 ? 'BUSINESS' : r <= 5 ? 'PREMIUM_ECONOMY' : 'ECONOMY';
+        for (const c of COLS) {
+          const seatNumber = `${r}${c}`;
+          seats.push({ flightId, seatNumber, class: cls, isAvailable: !PRE_BOOKED.includes(seatNumber) });
+        }
+      }
+      return seats;
+    }
+
+    async function main() {
+      const totalSeats = ROWS * COLS.length;
+
+      // Fresh start: remove existing seats then flights (seats FK -> flights).
+      await prisma.seat.deleteMany({});
+      await prisma.flight.deleteMany({});
+
+      const aircraft = await prisma.aircraft.upsert({
+        where: { registration: '9V-AERO' },
+        update: { model: 'Airbus A320neo', totalSeats, seatMap: { rows: ROWS, cols: COLS } },
+        create: { registration: '9V-AERO', model: 'Airbus A320neo', totalSeats, seatMap: { rows: ROWS, cols: COLS } },
+      });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let createdFlights = 0;
+      let createdSeats = 0;
+
+      for (let d = 0; d < DAYS; d++) {
+        for (const [flightNumber, origin, destination] of ROUTES) {
+          const dep = new Date(today);
+          dep.setDate(dep.getDate() + d);
+          dep.setHours(9, 30, 0, 0);
+          const arr = new Date(dep);
+          arr.setHours(13, 45, 0, 0);
+
+          const flight = await prisma.flight.create({
+            data: {
+              flightNumber, origin, destination,
+              scheduledDep: dep, scheduledArr: arr,
+              status: 'SCHEDULED', aircraftId: aircraft.id,
+              gate: 'A1', terminal: 'T1',
+              availableSeats: totalSeats - PRE_BOOKED.length,
+            },
+          });
+          const res = await prisma.seat.createMany({ data: buildSeats(flight.id) });
+          createdFlights++;
+          createdSeats += res.count;
+        }
+      }
+
+      const first = new Date(today);
+      const last = new Date(today); last.setDate(last.getDate() + DAYS - 1);
+      console.log(`✅ Re-seeded ${createdFlights} flights and ${createdSeats} seats for ${first.toISOString().slice(0,10)} .. ${last.toISOString().slice(0,10)}.`);
+      console.log(`   Routes: ${ROUTES.map(r => r[1] + '→' + r[2]).join(', ')}`);
+    }
+
+    main()
+      .catch((e) => { console.error('flight seed failed:', e); process.exit(1); })
+      .finally(() => prisma.$disconnect());
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flight-seed
+  namespace: aerolink
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels: { app: flight-seed }
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: flight-seed
+          image: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/flight-service:latest"
+          imagePullPolicy: Always
+          command: ["node", "/seed/seed-flights.js"]
+          envFrom:
+            - secretRef:
+                name: flight-service-secrets   # provides DATABASE_URL
+          volumeMounts:
+            - name: seed
+              mountPath: /seed
+      volumes:
+        - name: seed
+          configMap:
+            name: flight-seed-script
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: demo-seed
+  namespace: aerolink
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels: { app: demo-seed }
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: demo-seed
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: identity-service-secrets  # provides DATABASE_URL
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              #!/bin/sh
+              set -e
+              apk add --no-cache curl postgresql-client >/dev/null 2>&1
+              IDENTITY_URL="http://identity-service:3000/api/v1/auth"
+              PASSWORD="Demo@2024"
+              echo "Waiting for identity-service..."
+              i=0
+              until curl -sf "http://identity-service:3000/api/v1/health/live" >/dev/null 2>&1; do
+                i=$((i+1)); [ $i -gt 60 ] && echo "identity-service not ready" && exit 1
+                sleep 3
+              done
+              echo "identity-service ready"
+              sleep 2
+              register() {
+                EMAIL=$1; FIRST=$2; LAST=$3
+                RESP=$(curl -s -w "\n%{http_code}" -X POST "${IDENTITY_URL}/register" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\",\"firstName\":\"${FIRST}\",\"lastName\":\"${LAST}\"}" 2>&1 || true)
+                CODE=$(echo "$RESP" | tail -1)
+                case "$CODE" in
+                  200|201) echo "  + registered ${EMAIL}";;
+                  409)     echo "  . exists ${EMAIL}";;
+                  *)       echo "  ! ${EMAIL} -> HTTP ${CODE} (continuing)";;
+                esac
+              }
+              echo "Registering demo users..."
+              register "admin@aerolink.app"       "Admin"       "User"
+              register "passenger@aerolink.app"   "Jane"        "Doe"
+              register "gateagent@aerolink.app"   "Gate"        "Agent"
+              register "flightops@aerolink.app"   "Flight"      "Ops"
+              register "immigration@aerolink.app" "Immigration" "Officer"
+              echo "Patching roles via psql..."
+              psql "$DATABASE_URL" <<'SQL'
+              DO $$
+              BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='IMMIGRATION_OFFICER' AND enumtypid='UserRole'::regtype) THEN
+                  ALTER TYPE "UserRole" ADD VALUE 'IMMIGRATION_OFFICER'; END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='FLIGHT_ATTENDANT' AND enumtypid='UserRole'::regtype) THEN
+                  ALTER TYPE "UserRole" ADD VALUE 'FLIGHT_ATTENDANT'; END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='AIRCRAFT_CREW' AND enumtypid='UserRole'::regtype) THEN
+                  ALTER TYPE "UserRole" ADD VALUE 'AIRCRAFT_CREW'; END IF;
+              END $$;
+              UPDATE users SET roles=ARRAY['ADMIN','PASSENGER']::"UserRole"[]       WHERE email='admin@aerolink.app';
+              UPDATE users SET roles=ARRAY['PASSENGER']::"UserRole"[]              WHERE email='passenger@aerolink.app';
+              UPDATE users SET roles=ARRAY['GATE_AGENT']::"UserRole"[]             WHERE email='gateagent@aerolink.app';
+              UPDATE users SET roles=ARRAY['FLIGHT_OPS']::"UserRole"[]            WHERE email='flightops@aerolink.app';
+              UPDATE users SET roles=ARRAY['IMMIGRATION_OFFICER']::"UserRole"[]   WHERE email='immigration@aerolink.app';
+              SELECT email, roles FROM users ORDER BY "createdAt";
+              SQL
+              echo "Demo seed complete. All users password: Demo@2024"
+
