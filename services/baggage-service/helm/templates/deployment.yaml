@@ -18,38 +18,6 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
-      {{- if .Values.migrations.enabled }}
-      # Schema migration — exact mirror of the proven docker-compose `*-migrate`
-      # one-shots. Two things the previous version got wrong (caused
-      # prisma-migrate CrashLoopBackOff, exit 1):
-      #   1. Call the absolute prisma binary, NOT `npx prisma`. In the pruned
-      #      prod image, run from the service WORKDIR, `npx` may fail to resolve
-      #      the hoisted binary and try to fetch prisma from the registry, which
-      #      a locked-down pod cannot reach -> exit 1.
-      #   2. Give prisma a writable HOME (/tmp). As non-root UID 1000 there is no
-      #      home dir, so prisma cannot write its engine cache -> exit 1. (Compose
-      #      sidestepped this by running `user: root`.)
-      # The image WORKDIR is /app/services/<svc>-service, so prisma auto-discovers
-      # ./prisma/schema.prisma (datasource url = env("DATABASE_URL"), provided by
-      # the {{ .Release.Name }}-secrets secret below).
-      initContainers:
-        - name: prisma-migrate
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
-          env:
-            - name: HOME
-              value: /tmp
-          envFrom:
-            - secretRef:
-                name: {{ .Release.Name }}-secrets
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            capabilities:
-              drop: ["ALL"]
-      {{- end }}
       containers:
         - name: {{ .Release.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

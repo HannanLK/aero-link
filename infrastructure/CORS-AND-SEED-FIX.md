@@ -77,16 +77,19 @@ Consequence even after CORS is fixed: `register`/`login` hit a missing `users` t
 and the seat map / booking have no flights or seats to show.
 
 ### Fix #2
-- **Migration init-container** added to every service `deployment.yaml`, gated on
-  `.Values.migrations.enabled`. Enabled (`true`) for the 5 Prisma services
-  (identity, flight, booking, payment, checkin); left `false` for baggage (DynamoDB)
-  and notification. It runs `prisma db push` before the app starts — an exact mirror
-  of the compose `*-migrate` step:
-  - calls the **absolute** binary `/app/node_modules/.bin/prisma` (NOT `npx prisma`,
-    which can trigger a registry fetch in the pruned image and crash with exit 1);
-  - sets `HOME=/tmp` so prisma can write its engine cache as non-root UID 1000
-    (compose used `user: root` for the same reason).
-  - `prisma` is a runtime dependency, so the binary survives `npm prune --omit=dev`.
+- **Schema migration runs as a one-shot root Job** — `infrastructure/migrate-job.yaml`
+  (one Job per Prisma service: identity, flight, booking, payment, checkin). It mirrors
+  the docker-compose `*-migrate` services exactly, **including `user: root`**.
+  - Why a Job, not an init-container: `npx prisma generate` bakes the engines into the
+    image, but `COPY --from=builder /app/node_modules` leaves
+    `/app/node_modules/@prisma/engines` **root-owned**. `prisma db push` must write a
+    temp/checksum file there; the app's non-root UID 1000 cannot, so it dies with
+    `Can't write to /app/node_modules/@prisma/engines`. An init-container inherits the
+    app's non-root UID → CrashLoopBackOff. A short-lived **root** Job sidesteps it
+    while the app pods stay non-root.
+  - The deployment init-container approach was reverted; `migrations.enabled` stays
+    `false` everywhere. (Permanent alternative: in the Dockerfile, `chmod -R a+w
+    /app/node_modules/@prisma/engines` so a non-root migrate works — needs a rebuild.)
 - **`infrastructure/seed-job.yaml`** — a `flight-seed` Job (flights + seats, reusing
   the existing `seed-flights.js`) and a `demo-seed` Job (5 demo users + roles), to be
   applied once the services are healthy.
@@ -138,7 +141,13 @@ cd infrastructure/terraform/environments/dev
 terraform apply -target=module.api_gateway
 cd -
 
-# ── 4. Seed data (once services are Healthy). ─────────────────────────────────
+# ── 3b. Migrate the schema (one-shot root Jobs — mirrors compose *-migrate). ──
+kubectl -n aerolink apply -f infrastructure/migrate-job.yaml
+kubectl -n aerolink wait --for=condition=complete \
+  job/identity-migrate job/flight-migrate job/booking-migrate \
+  job/payment-migrate  job/checkin-migrate --timeout=300s
+
+# ── 4. Seed data (once services are Healthy + schema migrated). ───────────────
 kubectl -n aerolink apply -f infrastructure/seed-job.yaml
 kubectl -n aerolink wait --for=condition=complete job/flight-seed job/demo-seed --timeout=300s
 kubectl -n aerolink logs job/demo-seed            # prints the demo credentials
@@ -180,6 +189,6 @@ pay. All four broken flows should now complete.
 | `services/*/src/main.ts` (×7) | `app.enableCors(...)`, `CORS_ORIGINS`-driven allowlist with localhost fallback |
 | `services/*/helm/values.yaml` (×7) | `CORS_ORIGINS` env placeholder = site URL(s) |
 | `infrastructure/terraform/modules/api-gateway/main.tf` | remove `cors_configuration`; add unauth `OPTIONS /api/v1/{proxy+}` route |
-| `services/*/helm/templates/deployment.yaml` (×7) | `prisma-migrate` initContainer (gated on `migrations.enabled`) |
-| `services/{identity,flight,booking,payment,checkin}/helm/values.yaml` | `migrations.enabled: true` |
+| `infrastructure/migrate-job.yaml` (new) | one-shot **root** `prisma db push` Jobs for the 5 Prisma services |
 | `infrastructure/seed-job.yaml` (new) | `flight-seed` + `demo-seed` Jobs |
+| `services/*/helm/templates/deployment.yaml` | unchanged (init-container approach reverted) |

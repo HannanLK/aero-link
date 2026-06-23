@@ -1,0 +1,173 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AeroLink — schema migration Jobs (one-shot, run AFTER db-bootstrap creates the
+# per-service databases, BEFORE the seed Jobs). Mirrors the docker-compose
+# `*-migrate` services exactly, including `user: root`.
+#
+# WHY root: `npx prisma generate` bakes the engines into the image, but
+# `COPY --from=builder /app/node_modules` leaves /app/node_modules/@prisma/engines
+# ROOT-OWNED. `prisma db push` must write a temp/checksum file there, which the
+# app's non-root UID 1000 cannot do -> "Can't write to /app/node_modules/@prisma/
+# engines". A short-lived root Job sidesteps this; the app pods stay non-root.
+# (This is why the non-root init-container approach CrashLoopBackOff'd.)
+#
+#   kubectl -n aerolink apply -f infrastructure/migrate-job.yaml
+#   kubectl -n aerolink wait --for=condition=complete \
+#     job/identity-migrate job/flight-migrate job/booking-migrate \
+#     job/payment-migrate job/checkin-migrate --timeout=300s
+#   # re-run: kubectl -n aerolink delete job -l role=prisma-migrate --ignore-not-found
+# ─────────────────────────────────────────────────────────────────────────────
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: identity-migrate
+  namespace: aerolink
+  labels:
+    role: prisma-migrate
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: identity-migrate
+        role: prisma-migrate
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0          # prisma writes its engine into root-owned node_modules
+        runAsNonRoot: false
+      containers:
+        - name: migrate
+          image: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/identity-service:latest"
+          imagePullPolicy: Always
+          # WORKDIR in the image is /app/services/identity-service, so prisma
+          # auto-discovers ./prisma/schema.prisma (url = env("DATABASE_URL")).
+          command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
+          envFrom:
+            - secretRef:
+                name: identity-service-secrets
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flight-migrate
+  namespace: aerolink
+  labels:
+    role: prisma-migrate
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: flight-migrate
+        role: prisma-migrate
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0          # prisma writes its engine into root-owned node_modules
+        runAsNonRoot: false
+      containers:
+        - name: migrate
+          image: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/flight-service:latest"
+          imagePullPolicy: Always
+          # WORKDIR in the image is /app/services/flight-service, so prisma
+          # auto-discovers ./prisma/schema.prisma (url = env("DATABASE_URL")).
+          command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
+          envFrom:
+            - secretRef:
+                name: flight-service-secrets
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: booking-migrate
+  namespace: aerolink
+  labels:
+    role: prisma-migrate
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: booking-migrate
+        role: prisma-migrate
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0          # prisma writes its engine into root-owned node_modules
+        runAsNonRoot: false
+      containers:
+        - name: migrate
+          image: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/booking-service:latest"
+          imagePullPolicy: Always
+          # WORKDIR in the image is /app/services/booking-service, so prisma
+          # auto-discovers ./prisma/schema.prisma (url = env("DATABASE_URL")).
+          command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
+          envFrom:
+            - secretRef:
+                name: booking-service-secrets
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: payment-migrate
+  namespace: aerolink
+  labels:
+    role: prisma-migrate
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: payment-migrate
+        role: prisma-migrate
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0          # prisma writes its engine into root-owned node_modules
+        runAsNonRoot: false
+      containers:
+        - name: migrate
+          image: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/payment-service:latest"
+          imagePullPolicy: Always
+          # WORKDIR in the image is /app/services/payment-service, so prisma
+          # auto-discovers ./prisma/schema.prisma (url = env("DATABASE_URL")).
+          command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
+          envFrom:
+            - secretRef:
+                name: payment-service-secrets
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: checkin-migrate
+  namespace: aerolink
+  labels:
+    role: prisma-migrate
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: checkin-migrate
+        role: prisma-migrate
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0          # prisma writes its engine into root-owned node_modules
+        runAsNonRoot: false
+      containers:
+        - name: migrate
+          image: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/checkin-service:latest"
+          imagePullPolicy: Always
+          # WORKDIR in the image is /app/services/checkin-service, so prisma
+          # auto-discovers ./prisma/schema.prisma (url = env("DATABASE_URL")).
+          command: ["/app/node_modules/.bin/prisma", "db", "push", "--skip-generate", "--accept-data-loss"]
+          envFrom:
+            - secretRef:
+                name: checkin-service-secrets
