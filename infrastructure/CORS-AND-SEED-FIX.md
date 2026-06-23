@@ -80,9 +80,13 @@ and the seat map / booking have no flights or seats to show.
 - **Migration init-container** added to every service `deployment.yaml`, gated on
   `.Values.migrations.enabled`. Enabled (`true`) for the 5 Prisma services
   (identity, flight, booking, payment, checkin); left `false` for baggage (DynamoDB)
-  and notification. It runs `prisma db push` before the app starts — the mirror of
-  the compose `*-migrate` step. (`prisma` is a runtime dependency, so it survives the
-  image's `npm prune --omit=dev`.)
+  and notification. It runs `prisma db push` before the app starts — an exact mirror
+  of the compose `*-migrate` step:
+  - calls the **absolute** binary `/app/node_modules/.bin/prisma` (NOT `npx prisma`,
+    which can trigger a registry fetch in the pruned image and crash with exit 1);
+  - sets `HOME=/tmp` so prisma can write its engine cache as non-root UID 1000
+    (compose used `user: root` for the same reason).
+  - `prisma` is a runtime dependency, so the binary survives `npm prune --omit=dev`.
 - **`infrastructure/seed-job.yaml`** — a `flight-seed` Job (flights + seats, reusing
   the existing `seed-flights.js`) and a `demo-seed` Job (5 demo users + roles), to be
   applied once the services are healthy.
