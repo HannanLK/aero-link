@@ -68,4 +68,4 @@ externalSecrets:
     - secretKey: KAFKA_BROKERS
       remoteRef: { key: /aerolink/dev/shared/kafka-brokers }
     - secretKey: REDIS_URL
-      remoteRef: { ke
+      remoteRef: { key: /aerolink/dev/shared/redis-url }

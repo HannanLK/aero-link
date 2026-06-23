@@ -5,7 +5,11 @@ for _d in \
   "/c/Program Files/Amazon/AWSCLIV2" \
   "/c/ProgramData/chocolatey/bin" \
   "/c/Program Files/Docker/Docker/resources/bin" \
-  "$HOME/AppData/Local/Microsoft/WinGet/Links" ; do
+  "$HOME/AppData/Local/Microsoft/WinGet/Links" \
+  "/c/Users/$USER/AppData/Local/Microsoft/WinGet/Links" \
+  "/c/HashiCorp/Terraform" \
+  "/c/Program Files/Helm" \
+  "/c/Program Files/kubectl" ; do
   if [ -d "$_d" ]; then case ":$PATH:" in *":$_d:"*) ;; *) PATH="$PATH:$_d" ;; esac; fi
 done
 export PATH
@@ -27,6 +31,9 @@ export PATH
 #   ./destroy.sh --nuke      # also delete the Terraform state bucket + lock table
 ###############################################################################
 set -uo pipefail
+
+# ── Trap: keep the Git Bash window open on ANY failure ────────────────────────
+trap 'echo -e "\n\033[0;31m✖ FAILED at line $LINENO (exit code $?). See error above.\033[0m"; read -r -p "Press Enter to close..."' ERR
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TF_DIR="$HERE/terraform/environments/dev"

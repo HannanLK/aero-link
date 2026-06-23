@@ -48,6 +48,11 @@ output "aurora_reader_endpoint" {
   sensitive = true
 }
 
+output "aurora_master_username" {
+  description = "Aurora master username — single source of truth for load-secrets.sh"
+  value       = module.rds_aurora.master_username
+}
+
 output "redis_endpoint" {
   value     = module.elasticache.primary_endpoint
   sensitive = true

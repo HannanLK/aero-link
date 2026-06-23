@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-bootstrap-manual
+  namespace: aerolink
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: db-bootstrap-manual
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-bootstrap
+          image: postgres:16-alpine
+          env:
+            - name: ADMIN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: platform-init-secrets
+                  key: AURORA_ADMIN_URL
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Bootstrapping databases..."
+              for db in identity_db flight_db booking_db payment_db checkin_db; do
+                if psql "$ADMIN_URL" -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1; then
+                  echo "  $db exists"
+                else
+                  echo "  creating $db"
+                  psql "$ADMIN_URL" -c "CREATE DATABASE $db"
+                fi
+              done
+              echo "Done."

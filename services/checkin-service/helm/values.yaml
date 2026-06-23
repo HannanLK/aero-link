@@ -68,4 +68,4 @@ externalSecrets:
     - secretKey: DATABASE_URL
       remoteRef: { key: /aerolink/dev/checkin-service/db-url }
     - secretKey: KAFKA_BROKERS
-      remoteRef: { key: 
+      remoteRef: { key: /aerolink/dev/shared/kafka-brokers }

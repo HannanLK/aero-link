@@ -42,6 +42,22 @@ module "route53" {
   domain_name = var.domain_name
 }
 
+# ─── ArgoCD DNS record ────────────────────────────────────────────────────────
+# The argocd-server Ingress gets its own ALB from the AWS Load Balancer Controller.
+# That ALB hostname is not known to Terraform at plan time, so (mirroring the
+# alb_dns_name_override pattern) it is supplied via the argocd_alb_dns_name tfvar
+# after the ALB is provisioned:
+#   kubectl get ingress argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+# This is the record that was missing entirely (argocd.<domain> -> NXDOMAIN).
+resource "aws_route53_record" "argocd" {
+  count   = var.argocd_alb_dns_name != "" ? 1 : 0
+  zone_id = module.route53.zone_id
+  name    = "argocd.${var.domain_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [var.argocd_alb_dns_name]
+}
+
 # ─── ACM Certificates ────────────────────────────────────────────────────────
 # Regional cert: ALB + API Gateway (default aws provider)
 module "acm_regional" {

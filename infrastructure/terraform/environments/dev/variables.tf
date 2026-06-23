@@ -97,3 +97,9 @@ variable "alb_dns_name_override" {
   type        = string
   default     = ""
 }
+
+variable "argocd_alb_dns_name" {
+  description = "ALB hostname for the argocd-server Ingress. Leave empty until the ALB is provisioned, then set to create the argocd.<domain> DNS record."
+  type        = string
+  default     = ""
+}

@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 
 # ── Make Windows-installed CLIs visible to Git Bash (no-op on Linux/macOS) ────
+# When PowerShell calls `bash deploy.sh`, the Windows PATH may not be inherited.
 for _d in \
   "/c/Program Files/Amazon/AWSCLIV2" \
   "/c/ProgramData/chocolatey/bin" \
   "/c/Program Files/Docker/Docker/resources/bin" \
-  "$HOME/AppData/Local/Microsoft/WinGet/Links" ; do
+  "$HOME/AppData/Local/Microsoft/WinGet/Links" \
+  "/c/Users/$USER/AppData/Local/Microsoft/WinGet/Links" \
+  "/c/HashiCorp/Terraform" \
+  "/c/Program Files/Helm" \
+  "/c/Program Files/kubectl" ; do
   if [ -d "$_d" ]; then case ":$PATH:" in *":$_d:"*) ;; *) PATH="$PATH:$_d" ;; esac; fi
 done
 export PATH
@@ -25,6 +30,11 @@ export PATH
 #   ./deploy.sh --from 5   # resume from a given step number
 ###############################################################################
 set -euo pipefail
+
+# ── Trap: keep the Git Bash window open on ANY failure ────────────────────────
+# Without this, `set -e` kills the script and Git Bash closes the window
+# instantly — you never see the error message.
+trap 'echo -e "\n\033[0;31m✖ FAILED at line $LINENO (exit code $?). See error above.\033[0m"; read -r -p "Press Enter to close..."' ERR
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
@@ -131,11 +141,16 @@ if ! skip_before 7; then
       | docker login --username AWS --password-stdin "$REGISTRY"
     cd "$REPO"
     for svc in identity-service flight-service booking-service payment-service \
-               checkin-service baggage-service notification-service lambda-qr; do
+               checkin-service baggage-service notification-service; do
       say "building $svc"
       docker build -t "$REGISTRY/aerolink-dev/$svc:latest" -f "services/$svc/Dockerfile" .
       docker push "$REGISTRY/aerolink-dev/$svc:latest"
     done
+    # lambda-qr uses its own directory as build context (not monorepo root)
+    # --provenance=false is required for AWS Lambda (no OCI attestation manifests)
+    say "building lambda-qr"
+    docker build --provenance=false -t "$REGISTRY/aerolink-dev/lambda-qr:latest" "services/lambda-qr"
+    docker push "$REGISTRY/aerolink-dev/lambda-qr:latest"
     # webui is a containerised nginx app (served via ALB + CloudFront), built
     # from its own context with the API URL baked in at build time.
     say "building webui"
@@ -189,3 +204,4 @@ fi
 
 say "Deployment script complete. App URL: https://${DOMAIN_NAME}"
 warn "Remember to: 'terraform destroy' when done to stop AWS billing."
+read -r -p "Press Enter to close..."
