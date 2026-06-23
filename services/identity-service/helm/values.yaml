@@ -30,7 +30,7 @@ serviceAccount:
     eks.amazonaws.com/role-arn: arn:aws:iam::432004895948:role/aerolink-dev-identity-service-role
 
 migrations:
-  enabled: true
+  enabled: false
 
 env:
   # CORS allowlist (comma-separated). Per-environment placeholder — set to the

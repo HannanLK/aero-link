@@ -47,7 +47,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 migrations:
-  enabled: true
+  enabled: false
 
 env:
   # CORS allowlist (comma-separated). Per-environment placeholder — set to the
