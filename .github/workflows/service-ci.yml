@@ -8,7 +8,9 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  # ECR_REGISTRY is no longer built from a secret (the old `${{ secrets.AWS_ACCOUNT_ID }}`
+  # was empty -> ".dkr.ecr..."). It is derived at runtime from the ecr-login output
+  # (steps.ecr-login.outputs.registry), so no AWS_ACCOUNT_ID secret is needed.
 
 jobs:
   detect-changes:
@@ -91,6 +93,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail fast with a clear message instead of the cryptic
+      # "Could not load credentials from any providers" further down.
+      - name: Verify AWS credentials are configured
+        env:
+          ROLE: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          HAS_KEYS: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+        run: |
+          if [ -z "$ROLE" ] && [ "$HAS_KEYS" != "true" ]; then
+            echo "::error::No AWS credentials configured. Set repo secret AWS_DEPLOY_ROLE_ARN (OIDC, recommended) OR AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
       # Option A: OIDC-based credentials (preferred)
       - name: Configure AWS credentials (OIDC)
         if: ${{ env.AWS_DEPLOY_ROLE_ARN != '' }}
@@ -109,6 +123,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
+        id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set image tag
@@ -137,9 +152,9 @@ jobs:
           file: ${{ steps.paths.outputs.DOCKERFILE }}
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/aerolink-dev/${{ matrix.service }}:${{ steps.tag.outputs.IMAGE_TAG }}
-            ${{ env.ECR_REGISTRY }}/aerolink-dev/${{ matrix.service }}:latest
-          cache-from: type=registry,ref=${{ env.ECR_REGISTRY }}/aerolink-dev/${{ matrix.service }}:latest
+            ${{ steps.ecr-login.outputs.registry }}/aerolink-dev/${{ matrix.service }}:${{ steps.tag.outputs.IMAGE_TAG }}
+            ${{ steps.ecr-login.outputs.registry }}/aerolink-dev/${{ matrix.service }}:latest
+          cache-from: type=registry,ref=${{ steps.ecr-login.outputs.registry }}/aerolink-dev/${{ matrix.service }}:latest
           cache-to: type=inline
           build-args: |
             VITE_API_BASE_URL=https://api.transnova.online/api/v1
@@ -149,6 +164,7 @@ jobs:
           SERVICE: ${{ matrix.service }}
           IMAGE_TAG: ${{ steps.tag.outputs.IMAGE_TAG }}
           HELM_VALUES: ${{ steps.paths.outputs.HELM_VALUES }}
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           if [ -f "${HELM_VALUES}" ]; then
             sed -i "s|tag: .*|tag: \"${IMAGE_TAG}\"|" ${HELM_VALUES}
