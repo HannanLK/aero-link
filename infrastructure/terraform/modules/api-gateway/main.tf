@@ -52,6 +52,18 @@ resource "aws_apigatewayv2_integration" "alb" {
 # Routes — protected (JWT required)
 locals {
   protected_routes = [
+    # Bare collection roots. `{proxy+}` only matches paths WITH a sub-segment
+    # (e.g. /bookings/123), NOT the root /bookings — so POST/GET to a collection
+    # endpoint (POST /api/v1/bookings, POST /api/v1/payments, GET /api/v1/users…)
+    # 404s at the gateway without these explicit base routes.
+    "ANY /api/v1/flights",
+    "ANY /api/v1/bookings",
+    "ANY /api/v1/payments",
+    "ANY /api/v1/checkin",
+    "ANY /api/v1/baggage",
+    "ANY /api/v1/notifications",
+    "ANY /api/v1/users",
+    # Sub-paths (/{resource}/{id}, /{resource}/{id}/status, …)
     "ANY /api/v1/flights/{proxy+}",
     "ANY /api/v1/bookings/{proxy+}",
     "ANY /api/v1/payments/{proxy+}",
