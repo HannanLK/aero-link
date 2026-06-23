@@ -26,7 +26,8 @@ autoscaling:
 serviceAccount:
   create: true
   name: identity-service
-  annotations: {}  # eks.amazonaws.com/role-arn set by Terraform outputs
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::432004895948:role/aerolink-dev-identity-service-role
 
 migrations:
   enabled: false
@@ -72,6 +73,4 @@ readinessProbe:
   initialDelaySeconds: 20
   periodSeconds: 10
 
-podDisruptionBudget:
-  enabled: true
-  minAvailable: 1
+podDisruptionBu

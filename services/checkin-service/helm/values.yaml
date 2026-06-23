@@ -20,7 +20,8 @@ resources:
 serviceAccount:
   create: true
   name: checkin-service
-  annotations: {}  # eks.amazonaws.com/role-arn injected by Terraform/IRSA
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::432004895948:role/aerolink-dev-checkin-service-role
 
 livenessProbe:
   httpGet:
@@ -67,4 +68,4 @@ externalSecrets:
     - secretKey: DATABASE_URL
       remoteRef: { key: /aerolink/dev/checkin-service/db-url }
     - secretKey: KAFKA_BROKERS
-      remoteRef: { key: /aerolink/dev/shared/kafka-brokers }
+      remoteRef: { key: 

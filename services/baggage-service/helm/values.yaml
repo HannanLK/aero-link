@@ -20,7 +20,8 @@ resources:
 serviceAccount:
   create: true
   name: baggage-service
-  annotations: {}  # eks.amazonaws.com/role-arn injected by Terraform/IRSA
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::432004895948:role/aerolink-dev-baggage-service-role
 
 livenessProbe:
   httpGet:
@@ -62,4 +63,4 @@ externalSecrets:
   refreshInterval: 1h
   secrets:
     - secretKey: KAFKA_BROKERS
-      remoteRef: { key: /aerolink/dev/shared/kafka-brokers }
+      remoteRef: { key: 

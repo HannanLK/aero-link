@@ -20,7 +20,8 @@ resources:
 serviceAccount:
   create: true
   name: payment-service
-  annotations: {}  # eks.amazonaws.com/role-arn injected by Terraform/IRSA
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::432004895948:role/aerolink-dev-payment-service-role
 
 livenessProbe:
   httpGet:
@@ -67,4 +68,4 @@ externalSecrets:
     - secretKey: KAFKA_BROKERS
       remoteRef: { key: /aerolink/dev/shared/kafka-brokers }
     - secretKey: STRIPE_API_KEY
-      remoteRef: { key: /aerolink/dev/payment-service/stripe-api-key }
+      remoteRef: { key: /aerolink/

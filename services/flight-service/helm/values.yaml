@@ -20,7 +20,8 @@ resources:
 serviceAccount:
   create: true
   name: flight-service
-  annotations: {}  # eks.amazonaws.com/role-arn injected by Terraform/IRSA
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::432004895948:role/aerolink-dev-flight-service-role
 
 livenessProbe:
   httpGet:
@@ -67,4 +68,4 @@ externalSecrets:
     - secretKey: KAFKA_BROKERS
       remoteRef: { key: /aerolink/dev/shared/kafka-brokers }
     - secretKey: REDIS_URL
-      remoteRef: { key: /aerolink/dev/shared/redis-url }
+      remoteRef: { ke
