@@ -21,8 +21,16 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    await this.producer.connect();
-    await ensureTopics(this.kafka, Object.values(TOPICS));
+    // Non-fatal: if MSK is briefly unreachable at boot, DO NOT crash the app
+    // (a thrown onModuleInit aborts Nest bootstrap -> CrashLoopBackOff -> 503).
+    // kafkajs auto-connects on the first send(), so the service stays up.
+    try {
+      await this.producer.connect();
+      await ensureTopics(this.kafka, Object.values(TOPICS));
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[kafka] producer init deferred (will connect on first send):', (err as Error)?.message);
+    }
   }
   async onModuleDestroy() { await this.producer.disconnect(); }
 
