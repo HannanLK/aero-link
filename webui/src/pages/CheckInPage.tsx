@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle, Loader2, QrCode } from 'lucide-react';
 import { checkinApi } from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -14,11 +14,33 @@ export function CheckInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Auto-fill from the passenger's most recent booking so they don't type UUIDs.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('aerolink-last-booking');
+      if (!raw) return;
+      const b = JSON.parse(raw);
+      setBookingId(b.bookingId ?? '');
+      setFlightId(b.flightId ?? '');
+      setSeatNumber(b.seatNumber ?? '');
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const handleCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
+      // Demo mode: the mock flightId is not a real UUID, so skip the API and
+      // issue a simulated boarding pass.
+      if (flightId.startsWith('mock-')) {
+        await new Promise((r) => setTimeout(r, 400));
+        setQrCode(null);
+        setStep('done');
+        return;
+      }
       await checkinApi.checkin({ bookingId, flightId, seatNumber, bagCount });
       const qrRes = await checkinApi.getBoardingPassQr(bookingId);
       setQrCode(qrRes.data.qrCode ?? null);

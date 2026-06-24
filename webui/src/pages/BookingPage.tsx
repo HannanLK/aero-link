@@ -166,7 +166,9 @@ export function BookingPage() {
       // Demo mode: simulate the booking — the mock flightId is not a real UUID,
       // so the booking API would reject it. Advance straight to payment.
       if (isMockFlight) {
-        setBookingId(crypto.randomUUID());
+        const id = crypto.randomUUID();
+        setBookingId(id);
+        localStorage.setItem('aerolink-last-booking', JSON.stringify({ bookingId: id, flightId, seatNumber: selectedSeat }));
         setSagaStatus('AWAITING_PAYMENT');
         setStep('payment');
         setLoading(false);
@@ -179,6 +181,7 @@ export function BookingPage() {
       );
       const id = res.data.id;
       setBookingId(id);
+      localStorage.setItem('aerolink-last-booking', JSON.stringify({ bookingId: id, flightId, seatNumber: selectedSeat }));
       setStep('processing');
       setSagaStatus('AWAITING_SEAT_LOCK');
 
