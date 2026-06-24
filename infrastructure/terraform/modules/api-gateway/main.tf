@@ -77,10 +77,15 @@ locals {
 resource "aws_apigatewayv2_route" "protected" {
   for_each = toset(local.protected_routes)
 
-  api_id             = aws_apigatewayv2_api.http.id
-  route_key          = each.value
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = each.value
+  # NO Cognito JWT authorizer. The app issues self-signed identity-service JWTs
+  # (HS256), NOT Cognito tokens, so the Cognito authorizer rejected every request
+  # to these routes with 401 (wrong issuer/audience). Authorization is enforced
+  # at the service layer by RolesGuard, which decodes the forwarded Bearer token
+  # and checks roles. The gateway simply forwards the request + Authorization
+  # header. (This matches how the flight routes already behave.)
+  authorization_type = "NONE"
   target             = "integrations/${aws_apigatewayv2_integration.alb.id}"
 }
 
