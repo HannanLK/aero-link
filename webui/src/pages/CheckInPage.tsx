@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Loader2, QrCode } from 'lucide-react';
+import QRCode from 'qrcode';
 import { checkinApi } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -36,8 +37,11 @@ export function CheckInPage() {
       // Demo mode: the mock flightId is not a real UUID, so skip the API and
       // issue a simulated boarding pass.
       if (flightId.startsWith('mock-')) {
-        await new Promise((r) => setTimeout(r, 400));
-        setQrCode(null);
+        // Generate a real, scannable boarding-pass QR client-side (data: URL,
+        // allowed by CSP) so the demo shows an actual code, not a placeholder.
+        const payload = JSON.stringify({ bookingId, flightId, seatNumber, bags: bagCount });
+        const dataUrl = await QRCode.toDataURL(payload, { width: 240, margin: 1 });
+        setQrCode(dataUrl.split(',')[1]); // strip the "data:image/png;base64," prefix
         setStep('done');
         return;
       }
