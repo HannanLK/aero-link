@@ -100,9 +100,13 @@ export function BookingPage() {
     select: (r) => r.data,
     enabled: !!flightId && !flightFromState,
   });
-  const flight = flightFromState ?? flightFromApi;
-
   const isMockFlight = flightId?.startsWith('mock-');
+  // Demo flights encode the route in the id (mock-<ORIGIN>-<DEST>-<i>); derive
+  // origin/destination from it so pricing works (getById 400s on a non-UUID id).
+  const mockFlight = isMockFlight && flightId
+    ? { id: flightId, origin: flightId.split('-')[1], destination: flightId.split('-')[2] }
+    : null;
+  const flight = flightFromState ?? flightFromApi ?? mockFlight;
 
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [step, setStep] = useState<BookingStep>('seat');
@@ -159,6 +163,15 @@ export function BookingPage() {
     setError('');
     setLoading(true);
     try {
+      // Demo mode: simulate the booking — the mock flightId is not a real UUID,
+      // so the booking API would reject it. Advance straight to payment.
+      if (isMockFlight) {
+        setBookingId(crypto.randomUUID());
+        setSagaStatus('AWAITING_PAYMENT');
+        setStep('payment');
+        setLoading(false);
+        return;
+      }
       const idempotencyKey = crypto.randomUUID();
       const res = await bookingsApi.create(
         { flightId, seatNumber: selectedSeat, totalAmount: price },
@@ -168,14 +181,6 @@ export function BookingPage() {
       setBookingId(id);
       setStep('processing');
       setSagaStatus('AWAITING_SEAT_LOCK');
-
-      // For mock flights, skip saga polling and go straight to payment
-      if (isMockFlight) {
-        setSagaStatus('AWAITING_PAYMENT');
-        setStep('payment');
-        setLoading(false);
-        return;
-      }
 
       // Poll until saga reaches AWAITING_PAYMENT (seat locked)
       const status = await pollBookingStatus(id, ['AWAITING_PAYMENT']);
@@ -196,6 +201,13 @@ export function BookingPage() {
     setError('');
     setPaymentLoading(true);
     try {
+      // Demo mode: simulate payment without hitting the backend.
+      if (isMockFlight) {
+        setSagaStatus('CONFIRMED');
+        setStep('confirmed');
+        setPaymentLoading(false);
+        return;
+      }
       const idempotencyKey = crypto.randomUUID();
       await paymentApi.processPayment(
         {
@@ -206,14 +218,6 @@ export function BookingPage() {
         },
         idempotencyKey,
       );
-
-      // For mock flights, skip polling
-      if (isMockFlight) {
-        setSagaStatus('CONFIRMED');
-        setStep('confirmed');
-        setPaymentLoading(false);
-        return;
-      }
 
       // Poll until booking is CONFIRMED
       setSagaStatus('AWAITING_CONFIRMATION');
