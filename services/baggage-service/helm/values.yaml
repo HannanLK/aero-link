@@ -2,11 +2,7 @@ replicaCount: 1
 
 image:
   repository: "432004895948.dkr.ecr.us-east-1.amazonaws.com/aerolink-dev/baggage-service"
-<<<<<<< HEAD
   tag: "9ae18"
-=======
-  tag: "9ae18"
->>>>>>> 2cf942f (deploy: pin saga services to 9ae18)
   pullPolicy: Always
 
 service:
