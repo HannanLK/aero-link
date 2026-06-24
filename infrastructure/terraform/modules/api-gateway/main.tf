@@ -96,6 +96,31 @@ resource "aws_apigatewayv2_route" "cors_preflight" {
   target    = "integrations/${aws_apigatewayv2_integration.alb.id}"
 }
 
+# CORS preflight for the bare COLLECTION ROOTS — also unauthenticated.
+# The greedy `OPTIONS /api/v1/{proxy+}` above does NOT win for an exact path like
+# `/api/v1/bookings`, because the static-path `ANY /api/v1/bookings` route (added
+# so POST /bookings resolves) is more specific and would capture the OPTIONS
+# preflight WITH the JWT authorizer -> 401. A method-specific OPTIONS route on the
+# identical static path beats `ANY` for OPTIONS, so the preflight stays unauth.
+locals {
+  cors_base_routes = [
+    "OPTIONS /api/v1/flights",
+    "OPTIONS /api/v1/bookings",
+    "OPTIONS /api/v1/payments",
+    "OPTIONS /api/v1/checkin",
+    "OPTIONS /api/v1/baggage",
+    "OPTIONS /api/v1/notifications",
+    "OPTIONS /api/v1/users",
+  ]
+}
+
+resource "aws_apigatewayv2_route" "cors_preflight_base" {
+  for_each  = toset(local.cors_base_routes)
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = each.value
+  target    = "integrations/${aws_apigatewayv2_integration.alb.id}"
+}
+
 # Public routes (no auth — login/register)
 resource "aws_apigatewayv2_route" "public_auth" {
   api_id    = aws_apigatewayv2_api.http.id
